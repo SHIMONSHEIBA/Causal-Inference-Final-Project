@@ -7,6 +7,9 @@ import numpy as np
 class LanguageModel:
 
     def __init__(self, is_efficient, data_frame):
+        self.relevant_referrals_1gram_prob_calc = dict()
+        self.other_ref_text_1gram_prob_calc = dict()
+
         if is_efficient:
             self.relevant_referrals = data_frame.loc[data_frame.IsEfficient == 1]
             self.other_ref = data_frame.loc[data_frame.IsEfficient == -1]
@@ -34,7 +37,7 @@ class LanguageModel:
 
         # create a list of all the words in the all the comments
         self.relevant_referrals_all_text_list = self.relevant_referrals_all_text.split(' ')
-        #self.relevant_referrals_all_text_list = self.relevant_referrals_all_text_list.remove('')
+        # self.relevant_referrals_all_text_list = self.relevant_referrals_all_text_list.remove('')
 
         # len of all comments in each group
         self.relevant_referrals_len = len(self.relevant_referrals_all_text_list)
@@ -53,44 +56,49 @@ class LanguageModel:
     def unigram_prob(self, word):
         return self.relevant_referrals_freq_1gram[word] / self.relevant_referrals_len
 
-
-    def calc_referrals_prob(self):
-        #TODO: CHECK WHY relevant_referrals_1gram_prob_calc LEN IS 428 BUT relevant_referrals_text LEN IS 446
+    def calc_referrals_prob(self,is_efficient):
+        # TODO: CHECK WHY relevant_referrals_1gram_prob_calc LEN IS 428 BUT relevant_referrals_text LEN IS 446
         # TODO: CHANGE TO LOG SCALE
         # TODO: ADD BIGRAM
-
-        self.relevant_referrals_1gram_prob_calc = {}
-        self.other_ref_text_1gram_prob_calc = {}
 
         for ref in self.relevant_referrals_text:
             ref = ref.rstrip('\n')
             words_list = ref.split(' ')
-            prob = 1
+            prob = 0
             for word in words_list:
                 # TODO: ADD HANDLING WHEN WHEN WORD NOT IN..
                 if word in self.relevant_referrals_freq_1gram.keys():
-                    #prob += math.log(self.unigram_prob(word))
-                    prob *= self.unigram_prob(word)
+                    prob += math.log(self.unigram_prob(word))
+                    # prob *= self.unigram_prob(word)
+                elif is_efficient:
+                    prob += -6500.0
+                else:
+                    prob += -7800.0
             self.relevant_referrals_1gram_prob_calc[ref] = prob
 
         for ref in self.other_ref_text:
             ref = ref.rstrip('\n')
             words_list = ref.split(' ')
-            prob = 1
+            prob = 0
             for word in words_list:
                 if word in self.relevant_referrals_freq_1gram.keys():
-                    # prob += math.log(self.unigram_prob(word))
-                    prob *= self.unigram_prob(word)
+                    prob += math.log(self.unigram_prob(word))
+                    # prob *= self.unigram_prob(word)
+                elif is_efficient:
+                    prob += -6200.0
+                else:
+                    prob += -6100.0
             self.other_ref_text_1gram_prob_calc[ref] = prob
 
         return
 
+
 def compare_prob(efficient_language_model_object, non_efficient_language_model_object):
 
-    efficient_ref_ratio = {}
-    efficient_ref_ratio_list = []
-    non_efficient_ref_ratio = {}
-    non_efficient_ref_ratio_list = []
+    efficient_ref_ratio = dict()
+    efficient_ref_ratio_list = list()
+    non_efficient_ref_ratio = dict()
+    non_efficient_ref_ratio_list = list()
     for key, value in efficient_language_model_object.relevant_referrals_1gram_prob_calc.items():
         if non_efficient_language_model_object.other_ref_text_1gram_prob_calc[key] == 0:
             efficient_ref_ratio[key] = 2
@@ -132,11 +140,10 @@ def main():
     all_refarrals = all_refarrals[['comment_body', 'IsEfficient']]
 
     efficient_language_model_object = LanguageModel(is_efficient=True, data_frame=all_refarrals)
-    efficient_language_model_object.calc_referrals_prob()
+    efficient_language_model_object.calc_referrals_prob(is_efficient=True)
     non_efficient_language_model_object = LanguageModel(is_efficient=False, data_frame=all_refarrals)
-    non_efficient_language_model_object.calc_referrals_prob()
+    non_efficient_language_model_object.calc_referrals_prob(is_efficient=False)
     efficient_ref_ratio, non_efficient_ref_ratio = compare_prob(efficient_language_model_object, non_efficient_language_model_object)
-
 
 
 if __name__ == '__main__':
