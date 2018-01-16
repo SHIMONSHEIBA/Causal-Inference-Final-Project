@@ -10,8 +10,10 @@ from pandas.io import gbq
 import pandas as pd
 import time
 import csv
+from datetime import datetime
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\Causal-Inference-Final-Project\\My First Project-d643f6d223cf.json'
+base_directory = os.path.abspath(os.curdir)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(base_directory, 'My First Project-d643f6d223cf.json')
 MyProjectID = 'grand-century-190916'
 
 
@@ -191,11 +193,11 @@ def filter_results(TestDate, string_to_find):
 def SecondQuery(predictedResults):
     predictedResultsEfficiency = pd.DataFrame()
     # predictedResultsEfficiency = pd.read_csv('FinalResultsWithEfficient_13.4.17_7.csv')
-
+    iter_index = 0
     for index, comment in predictedResults.iterrows():
         if comment['classifier_result'] > 0.9 and comment['IsEfficient'] == -1:  # and comment['classifier_result'] < 0.985890227:
             # query: check if the author of the submission posted in the recommended subreddit before the reference
-            is_post_before_query = """SELECT * FROM
+            is_post_before_query = """SELECT created_utc FROM
                                     (SELECT * FROM [fh-bigquery:reddit_posts.2015_12] 
                                     WHERE author = '{0}' AND created_utc > {1} AND subreddit = '{2}'),
                                     (SELECT * FROM [fh-bigquery:reddit_posts.2016_01]
@@ -284,18 +286,21 @@ def SecondQuery(predictedResults):
             #     format((time.asctime(time.localtime(time.time()))), comment['submission_author'],
             #            comment['comment_created_time'], comment['recommend_subreddit'])
             print('{}: Start quering the query: {} '.\
-                format((time.asctime(time.localtime(time.time()))), is_post_before_query))
+                  format((time.asctime(time.localtime(time.time()))), is_post_before_query))
             logging.debug('{}: Start quering the query: {}'.\
                           format((time.asctime(time.localtime(time.time()))), is_post_before_query))
             is_post_before_df = (gbq.read_gbq(is_post_before_query, project_id=MyProjectID))
-            is_post_before_df.assign(sub_com_index = index)
-            if index == 0:
+            is_post_before_df = is_post_before_df.assign(sub_com_index=index)
+            is_post_before_df = is_post_before_df.assign(referral_utc=comment['comment_created_time'])
+            if iter_index == 0:
                 is_post_before_df_total = is_post_before_df
             else:
-                is_post_before_df_total = pd.concat([is_post_before_df_total,is_post_before_df],axis=1)
-                is_post_before_df_total.to_csv("is_post_before_df_total", encoding='utf-8')
+                is_post_before_df_total = pd.concat([is_post_before_df_total,is_post_before_df], axis=0)
+                is_post_before_df_total.to_csv("is_post_before_df_total.csv", encoding='utf-8')
 
-            #if is_post_before_df.empty:
+            iter_index += 1
+
+            # if is_post_before_df.empty:
             if False:
                 #query: check if the author of the submission posted in the recommended subreddit after the reference
                 is_post_after_query = """SELECT * FROM
@@ -402,12 +407,12 @@ def SecondQuery(predictedResults):
             #     comment['IsEfficient'] = -1
             #     predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
             # predictedResultsEfficiency.to_csv('FinalResultsWithEfficientSub.csv', encoding='utf-8')
-    is_post_before_df_total.to_csv("is_post_before_df_total",encoding='utf-8')
+    is_post_before_df_total.to_csv("is_post_before_df_total.csv",encoding='utf-8')
     return predictedResultsEfficiency
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='logfile_{}.log'.format(time.localtime()), level=logging.DEBUG)
+    logging.basicConfig(filename=datetime.now().strftime('LogFile_%d_%m_%Y_%H_%M.log'), level=logging.DEBUG)
     print('{}: Start quering'.format((time.asctime(time.localtime(time.time())))))
     logging.info('{}: Start quering'.format((time.asctime(time.localtime(time.time())))))
     # brings all data from all sub reddits - we have already this data
