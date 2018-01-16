@@ -10,10 +10,9 @@ from pandas.io import gbq
 import pandas as pd
 import time
 import csv
-import Train_test_classifier
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'C:\\Users\\user\\Documents\\Technion\\semester 8\\My Project-b7f535d58ff7.json'
-MyProjectID = 'add one'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\Causal-Inference-Final-Project\\My First Project-d643f6d223cf.json'
+MyProjectID = 'grand-century-190916'
 
 
 def FirstQuery():
@@ -194,9 +193,10 @@ def SecondQuery(predictedResults):
     # predictedResultsEfficiency = pd.read_csv('FinalResultsWithEfficient_13.4.17_7.csv')
 
     for index, comment in predictedResults.iterrows():
-        if comment['classifier_result'] > 0.9: # and comment['classifier_result'] < 0.985890227:
+        if comment['classifier_result'] > 0.9 and comment['IsEfficient'] == -1: # and comment['classifier_result'] < 0.985890227:
             # query: check if the author of the submission posted in the recommended subreddit before the reference
-            is_post_before_query = """SELECT * FROM
+            is_post_before_query = """SELECT COUNT(*) AS NUM_OF_POSTS, MIN(created_utc) AS MIN_DATE, MAX(created_utc) AS MAX_DATE  
+                                    FROM
                             (SELECT * FROM [fh-bigquery:reddit_posts.2015_12]),
                             (SELECT * FROM [fh-bigquery:reddit_posts.2016_01]),
                             (SELECT * FROM [fh-bigquery:reddit_posts.2016_02]),
@@ -240,7 +240,8 @@ def SecondQuery(predictedResults):
                             (SELECT * FROM [fh-bigquery:reddit_comments.2017_02])
                      WHERE author = '{}'
                      AND created_utc < {}
-                     AND subreddit = '{}'""".format(comment['submission_author'], comment['comment_created_time'],
+                     AND subreddit = '{}'
+                     GROUP BY author""".format(comment['submission_author'], comment['comment_created_time'],
                                                   comment['recommend_subreddit'])
             # print '{}: Start quering the query: author: {}, create_utd: {}, recommended_subreddit:{}'. \
             #     format((time.asctime(time.localtime(time.time()))), comment['submission_author'],
