@@ -17,13 +17,13 @@ MyProjectID = 'grand-century-190916'
 
 def FirstQuery():
     # [START run_query]
-    subreddits_list = ('diet', '1200isplenty', 'bjj', 'EatCheapAndHealthy',
-                  'fasting', 'gainit', 'intermittentfasting', 'leangains', 'loseit', 'nutrition',
-                  'PlantBasedDiet', '100DaysofKeto', 'ketogains', 'keto', 'ketoscience', 'vegetarianketo', 'xxketo',
-                   '90daysgoal', 'MealPrepSunday', 'zerocarb', 'veganketo', 'fatlogic', 'trueloseit', 'ketorecipes',
-                   'ketochow', 'intermittentfasting', 'ketoaustralia', 'ketodrunk', 'ketonz', 'vegan1200isplenty',
-                   'CuttingWeight', 'ketotrees', 'sugarfree', 'DesiKeto', 'ketouk', 'ketofreestyle', '1200isjerky',
-                   'ketocirclejerk', 'askfatlogic', 'FoodAddiction', 'dutchketo', 'fatacceptance', 'Diets', 'Keto_Food')
+    subreddits_list = ('diet', '1200isplenty', 'bjj', 'EatCheapAndHealthy', 'fasting', 'gainit', 'intermittentfasting',
+                       'leangains', 'loseit', 'nutrition', 'PlantBasedDiet', '100DaysofKeto', 'ketogains', 'keto',
+                       'ketoscience', 'vegetarianketo', 'xxketo', '90daysgoal', 'MealPrepSunday', 'zerocarb',
+                       'veganketo', 'fatlogic', 'trueloseit', 'ketorecipes', 'ketochow', 'intermittentfasting',
+                       'ketoaustralia', 'ketodrunk', 'ketonz', 'vegan1200isplenty', 'CuttingWeight', 'ketotrees',
+                       'sugarfree', 'DesiKeto', 'ketouk', 'ketofreestyle', '1200isjerky', 'ketocirclejerk',
+                       'askfatlogic', 'FoodAddiction', 'dutchketo', 'fatacceptance', 'Diets', 'Keto_Food')
     print('subreddits_list length is: {}'.format(len(subreddits_list)))
 
     # subreddits_list = ('diet', 'paleo')  #small subreddits for tests
@@ -104,11 +104,11 @@ def FirstQuery():
     return merge_results
 
 
-#first filter of the comments- check that the subreddits in the comments are ok
+# first filter of the comments- check that the subreddits in the comments are ok
 def filter_results(TestDate, string_to_find):
     reference_comments = pd.DataFrame()
 
-    #upload the names of the exists subreddits
+    # upload the names of the exists subreddits
     with open('C:/gitprojects/final project/subreddits/subreddit1.csv', 'r') as csvfile:
         subreddits_list = list(csv.reader(csvfile))
     csvfile.close()
@@ -193,7 +193,7 @@ def SecondQuery(predictedResults):
     # predictedResultsEfficiency = pd.read_csv('FinalResultsWithEfficient_13.4.17_7.csv')
 
     for index, comment in predictedResults.iterrows():
-        if comment['classifier_result'] > 0.9 and comment['IsEfficient'] == -1: # and comment['classifier_result'] < 0.985890227:
+        if comment['classifier_result'] > 0.9 and comment['IsEfficient'] == -1:  # and comment['classifier_result'] < 0.985890227:
             # query: check if the author of the submission posted in the recommended subreddit before the reference
             is_post_before_query = """SELECT * FROM
                                     (SELECT * FROM [fh-bigquery:reddit_posts.2015_12] 
@@ -392,7 +392,7 @@ def SecondQuery(predictedResults):
                               format((time.asctime(time.localtime(time.time()))), is_post_after_query))
                 is_post_after_df = (gbq.read_gbq(is_post_after_query, project_id=MyProjectID))
                 if is_post_after_df.empty:
-                    # the author of the submission posted in the recommended subreddit after the reference but not before
+                # the author of the submission posted in the recommended subreddit after the reference but not before
                     comment['IsEfficient'] = -1
                     predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
                 else: # the author of the submission didn't post in the recommended subreddit after the reference and not before
