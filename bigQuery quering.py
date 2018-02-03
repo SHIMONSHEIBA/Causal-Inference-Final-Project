@@ -187,127 +187,127 @@ def filter_results(TestDate, string_to_find):
                                 counter_r += 1
     print('number of comments with more than 1 reference is: {}'.format(counter_r))
 
-    return reference_comments
+    # return reference_comments
 
 
 def SecondQuery(predictedResults):
-    predictedResultsEfficiency = pd.DataFrame()
-    # predictedResultsEfficiency = pd.read_csv('FinalResultsWithEfficient_13.4.17_7.csv')
     iter_index = 0
     for index, comment in predictedResults.iterrows():
-        if comment['IsEfficient'] == -1 and comment['index'] > 24:
-            # query: check if the author of the submission posted in the recommended subreddit before the reference
-            is_post_before_query = """SELECT created_utc FROM
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2015_12] 
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_01]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_02]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_03]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_04]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_05]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_06]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_07]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_08]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_09]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_10]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_11]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2016_12]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2017_01]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_posts.2017_02]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_01]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_02]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_03]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_04]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_05]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_06]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_07]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_08]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_09]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_10]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_11]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2015_12]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_01]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_02]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_03]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_04]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_05]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_06]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_07]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_08]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_09]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_10]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_11]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2016_12]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2017_01]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
-                                    (SELECT * FROM [fh-bigquery:reddit_comments.2017_02]
-                                    WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}')"""\
-                .format(comment['submission_author'], comment['comment_created_time'], comment['recommend_subreddit'])
-            # print '{}: Start quering the query: author: {}, create_utd: {}, recommended_subreddit:{}'. \
-            #     format((time.asctime(time.localtime(time.time()))), comment['submission_author'],
-            #            comment['comment_created_time'], comment['recommend_subreddit'])
-            print('{}: Start quering the query: {} '.
-                  format((time.asctime(time.localtime(time.time()))), is_post_before_query))
-            logging.debug('{}: Start quering the query: {}'.
-                          format((time.asctime(time.localtime(time.time()))), is_post_before_query))
-            is_post_before_df = (gbq.read_gbq(is_post_before_query, project_id=MyProjectID))
-            is_post_before_df = is_post_before_df.assign(sub_com_index=comment['index'])
-            is_post_before_df = is_post_before_df.assign(referral_utc=comment['comment_created_time'])
-            is_post_before_df = is_post_before_df.assign(classifier_result=comment['classifier_result'])
-            if is_post_before_df.empty:
-                is_post_before_df = pd.DataFrame({'created_utc': 'not write', 'sub_com_index': comment['index'],
-                                                  'referral_utc': comment['comment_created_time'],
-                                                  'classifier_result': comment['classifier_result']}, index=[1])
-            if iter_index == 0:
-                is_post_before_df_total = is_post_before_df
-            else:
-                is_post_before_df_total = pd.concat([is_post_before_df_total, is_post_before_df], axis=0)
-                is_post_before_df_total.to_csv("is_post_before_df_total_fixed_1.csv", encoding='utf-8')
+        if False:
+            if comment['IsEfficient'] == -1 and comment['index'] > 24:
+                # query: check if the author of the submission posted in the recommended subreddit before the reference
+                is_post_before_query = """SELECT created_utc FROM
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2015_12] 
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_01]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_02]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_03]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_04]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_05]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_06]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_07]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_08]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_09]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_10]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_11]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2016_12]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2017_01]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_posts.2017_02]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_01]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_02]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_03]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_04]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_05]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_06]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_07]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_08]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_09]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_10]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_11]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2015_12]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_01]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_02]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_03]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_04]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_05]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_06]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_07]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_08]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_09]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_10]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_11]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2016_12]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2017_01]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}'),
+                                        (SELECT * FROM [fh-bigquery:reddit_comments.2017_02]
+                                        WHERE author = '{0}' AND created_utc < {1} AND subreddit = '{2}')"""\
+                    .format(comment['submission_author'], comment['comment_created_time'], comment['recommend_subreddit'])
+                # print '{}: Start quering the query: author: {}, create_utd: {}, recommended_subreddit:{}'. \
+                #     format((time.asctime(time.localtime(time.time()))), comment['submission_author'],
+                #            comment['comment_created_time'], comment['recommend_subreddit'])
+                print('{}: Start quering the query: {} '.
+                      format((time.asctime(time.localtime(time.time()))), is_post_before_query))
+                logging.debug('{}: Start quering the query: {}'.
+                              format((time.asctime(time.localtime(time.time()))), is_post_before_query))
+                is_post_before_df = (gbq.read_gbq(is_post_before_query, project_id=MyProjectID))
+                is_post_before_df = is_post_before_df.assign(sub_com_index=comment['index'])
+                is_post_before_df = is_post_before_df.assign(referral_utc=comment['comment_created_time'])
+                is_post_before_df = is_post_before_df.assign(classifier_result=comment['classifier_result'])
+                if is_post_before_df.empty:
+                    is_post_before_df = pd.DataFrame({'created_utc': 'not write', 'sub_com_index': comment['index'],
+                                                      'referral_utc': comment['comment_created_time'],
+                                                      'classifier_result': comment['classifier_result']}, index=[1])
+                if iter_index == 0:
+                    is_post_before_df_total = is_post_before_df
+                else:
+                    is_post_before_df_total = pd.concat([is_post_before_df_total, is_post_before_df], axis=0)
+                    is_post_before_df_total.to_csv("is_post_before_df_total_fixed_1.csv", encoding='utf-8')
 
-            iter_index += 1
-
-            # if is_post_before_df.empty:
-            if False:
+                iter_index += 1
+        else:
+            # TODO: change is_written_in_last_week to month and comment['count'] to the correct
+            if comment['is_written_in_last_week'] == 0.0 and 0 < comment['count'] < 4:
+                # if is_post_before_df.empty:
                 # query: check if the author of the submission posted in the recommended subreddit after the reference
-                is_post_after_query = """SELECT * FROM
+                is_post_after_query = """SELECT created_utc FROM
                                     (SELECT * FROM [fh-bigquery:reddit_posts.2015_12] 
                                     WHERE author = '{0}' AND created_utc > {1} AND subreddit = '{2}'),
                                     (SELECT * FROM [fh-bigquery:reddit_posts.2016_01]
@@ -390,8 +390,7 @@ def SecondQuery(predictedResults):
                                     WHERE author = '{0}' AND created_utc > {1} AND subreddit = '{2}'),
                                     (SELECT * FROM [fh-bigquery:reddit_comments.2017_02]
                                     WHERE author = '{0}' AND created_utc > {1} AND subreddit = '{2}')""".format(
-                    comment['submission_author'], comment['comment_created_time'],
-                                                          comment['recommend_subreddit'])
+                    comment['submission_author'], comment['comment_created_time'], comment['recommend_subreddit'])
                 # print '{}: Start quering the query: author: {}, create_utd: {}, recommended_subreddit:{}'. \
                 #     format((time.asctime(time.localtime(time.time()))), comment['submission_author'],
                 #            comment['comment_created_time'], comment['recommend_subreddit'])
@@ -401,18 +400,19 @@ def SecondQuery(predictedResults):
                               format((time.asctime(time.localtime(time.time()))), is_post_after_query))
                 is_post_after_df = (gbq.read_gbq(is_post_after_query, project_id=MyProjectID))
                 if is_post_after_df.empty:
-                # the author of the submission posted in the recommended subreddit after the reference but not before
+                    # the author of the submission didn't post in the recommended subreddit before and after the ref
                     comment['IsEfficient'] = -1
-                    predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
-                else: # the author of the submission didn't post in the recommended subreddit after the reference and not before
+                    predictedResults = predictedResults.append(comment)
+                else:  # the author of the submission posted in the recommended subreddit after the ref and not before
                     comment['IsEfficient'] = 1
-                    predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
-            # else: # the author of the submission posted in the recommended subreddit after the reference and also before
+                    predictedResults = predictedResults.append(comment)
+            # else: # the author of the submission posted in the recommended subreddit after the ref and also before
             #     comment['IsEfficient'] = -1
             #     predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
             # predictedResultsEfficiency.to_csv('FinalResultsWithEfficientSub.csv', encoding='utf-8')
-    is_post_before_df_total.to_csv("is_post_before_df_total_fixed_final.csv", encoding='utf-8')
-    return predictedResultsEfficiency
+                predictedResults.to_csv("predictedResultsEfficiency_fixed.csv", encoding='utf-8')
+    predictedResults.to_csv("predictedResultsEfficiency_fixed.csv", encoding='utf-8')
+    return predictedResults
 
 
 if __name__ == '__main__':
@@ -439,8 +439,7 @@ if __name__ == '__main__':
     # resultsPredicted.to_csv('resultsPredicted1600.csv', encoding='utf-8')
     # logging.debug('{}: Start'.format((time.asctime(time.localtime(time.time())))))
 
-    resultsPredicted = pd.read_excel('FinalFeatures_with_comment_time.xlsx')
+    resultsPredicted = pd.read_excel('result_to_classify_small.xlsx')
     resultsPredictedSort = resultsPredicted.sort_values(by=['classifier_result'], ascending=False, axis=0)
     FinalResultsWithEfficient = SecondQuery(resultsPredictedSort)
     #FinalResultsWithEfficient.to_csv('FinalResultsWithEfficient_final.csv', encoding='utf-8')
-# [END all]
