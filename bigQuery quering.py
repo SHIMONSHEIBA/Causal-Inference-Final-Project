@@ -13,8 +13,8 @@ import csv
 from datetime import datetime
 
 base_directory = os.path.abspath(os.curdir)
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(base_directory, 'My First Project-7088a5e1ce02.json')
-MyProjectID = 'root-habitat-191608'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(base_directory, 'reut shimon project-da938df278f6.json')
+MyProjectID = 'reut-shimon-project'
 
 
 def FirstQuery():
@@ -191,6 +191,7 @@ def filter_results(TestDate, string_to_find):
 
 
 def SecondQuery(predictedResults):
+    is_post_before_df_total = pd.DataFrame()
     iter_index = 0
     for index, comment in predictedResults.iterrows():
         if False:
@@ -291,15 +292,17 @@ def SecondQuery(predictedResults):
                 is_post_before_df = is_post_before_df.assign(sub_com_index=comment['index'])
                 is_post_before_df = is_post_before_df.assign(referral_utc=comment['comment_created_time'])
                 is_post_before_df = is_post_before_df.assign(classifier_result=comment['classifier_result'])
+                is_post_before_df = is_post_before_df.assign(count=is_post_before_df.shape[0])
+                max_time = is_post_before_df.max(axis=0)
+                is_post_before_df = is_post_before_df.assign(time_since_last_post=
+                                                             max_time - is_post_before_df['comment_created_time'])
                 if is_post_before_df.empty:
                     is_post_before_df = pd.DataFrame({'created_utc': 'not write', 'sub_com_index': comment['index'],
                                                       'referral_utc': comment['comment_created_time'],
                                                       'classifier_result': comment['classifier_result']}, index=[1])
-                if iter_index == 0:
-                    is_post_before_df_total = is_post_before_df
-                else:
-                    is_post_before_df_total = pd.concat([is_post_before_df_total, is_post_before_df], axis=0)
-                    is_post_before_df_total.to_csv("is_post_before_df_total_fixed_1.csv", encoding='utf-8')
+
+                is_post_before_df_total = pd.concat([is_post_before_df_total, is_post_before_df], axis=0)
+                is_post_before_df_total.to_csv("is_post_before_df_total.csv", encoding='utf-8')
 
                 iter_index += 1
         else:
