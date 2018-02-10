@@ -48,9 +48,15 @@ class Sentiment():
 
     def calc_comments_probs(self):
 
+        comment_index = 0
         for comment in self.data.comment_body:
 
-            comment_index = 0
+            if not type(comment) is str:
+                continue
+
+            if len(comment) == 0:
+                continue
+
             total_words_count = 0
             calculated_words_count = 0
 
