@@ -1,5 +1,5 @@
 
-#first run this, download() will open an installation gui
+# first run this, download() will open an installation gui
 
 # nltk.download()
 import pandas as pd
@@ -13,7 +13,7 @@ import csv
 from os.path import join
 
 
-class Sentiment():
+class Sentiment:
 
     def __init__(self, data_name):
 
@@ -67,9 +67,9 @@ class Sentiment():
             for word in comment_parsed:
                 word_pos = words_pos[total_words_count][1]
                 # change POS to wordnet POS
-                #POS_LIST =  nouns, verbs, adjectives and adverbs = n,v,a,r
+                # POS_LIST =  nouns, verbs, adjectives and adverbs = n,v,a,r
                 wn_word_POS = util.get_wordnet_pos(word_pos)
-                #get synset of chosen POS
+                # get synset of chosen POS
                 wordnet = swn.senti_synsets(word, wn_word_POS)
                 if len(list(wordnet)) > 0:
                     wordnet = swn.senti_synsets(word, wn_word_POS)
@@ -85,7 +85,6 @@ class Sentiment():
                                                   'comment_prob_df_mean': comment_prob_df.mean(axis=0),
                                               'comment_senti': comment_prob_df.mean(axis=0).idxmax(axis=1)}
 
-
             # print('comment probs are: {}'.format(comment_prob_df.mean(axis=0)))
             # print('total words in comment : {}'.format(total_words_count))
             print('for comment {} calculated words: {}, meaning {} of the post words'.format(comment_index,
@@ -100,8 +99,7 @@ class Sentiment():
         return
 
 
-
-class util():
+class util:
 
     @staticmethod
     def get_wordnet_pos(treebank_tag):
