@@ -1,5 +1,5 @@
 
-#first run this, download() will open an installation gui
+# first run this, download() will open an installation gui
 
 # nltk.download()
 import pandas as pd
@@ -13,7 +13,7 @@ import pickle
 
 
 
-class Sentiment():
+class Sentiment:
 
     def __init__(self, data_name):
 
@@ -72,9 +72,9 @@ class Sentiment():
             for word in comment_parsed:
                 word_pos = words_pos[total_words_count][1]
                 # change POS to wordnet POS
-                #POS_LIST =  nouns, verbs, adjectives and adverbs = n,v,a,r
+                # POS_LIST =  nouns, verbs, adjectives and adverbs = n,v,a,r
                 wn_word_POS = util.get_wordnet_pos(word_pos)
-                #get synset of chosen POS
+                # get synset of chosen POS
                 wordnet = swn.senti_synsets(word, wn_word_POS)
                 if len(list(wordnet)) > 0:
                     wordnet = swn.senti_synsets(word, wn_word_POS)
@@ -104,7 +104,6 @@ class Sentiment():
                                                                                     comment_prob_df[
                                                                                         comment_prob_df['neg'] > 0.5][
                                                                                         'neg'].mean(axis=0))
-
 
             # print('comment probs are: {}'.format(comment_prob_df.mean(axis=0)))
             # print('total words in comment : {}'.format(total_words_count))
@@ -183,8 +182,7 @@ class Sentiment():
 
         return pos_neg_rules_vec
 
-
-class util():
+class util:
 
     @staticmethod
     def get_wordnet_pos(treebank_tag):

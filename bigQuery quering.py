@@ -307,7 +307,7 @@ def SecondQuery(predictedResults):
                 iter_index += 1
         else:
             # TODO: change is_written_in_last_week to month and comment['count'] to the correct
-            if comment['is_written_in_last_week'] == 0.0 and 0 < comment['count'] < 4:
+            if comment['is_written_in_last_month'] == 0.0 and 0 < comment['count'] < 4:
                 # if is_post_before_df.empty:
                 # query: check if the author of the submission posted in the recommended subreddit after the reference
                 is_post_after_query = """SELECT created_utc FROM
@@ -404,17 +404,17 @@ def SecondQuery(predictedResults):
                 is_post_after_df = (gbq.read_gbq(is_post_after_query, project_id=MyProjectID))
                 if is_post_after_df.empty:
                     # the author of the submission didn't post in the recommended subreddit before and after the ref
-                    comment['IsEfficient'] = -1
-                    predictedResults = predictedResults.append(comment)
+                    # comment['IsEfficient'] = -1
+                    predictedResults.loc[predictedResults['index'] == comment['index'], 'IsEfficient'] = -1
                 else:  # the author of the submission posted in the recommended subreddit after the ref and not before
-                    comment['IsEfficient'] = 1
-                    predictedResults = predictedResults.append(comment)
+                    # comment['IsEfficient'] = 1
+                    predictedResults.loc[predictedResults['index'] == comment['index'], 'IsEfficient'] = 1
             # else: # the author of the submission posted in the recommended subreddit after the ref and also before
             #     comment['IsEfficient'] = -1
             #     predictedResultsEfficiency = predictedResultsEfficiency.append(comment)
             # predictedResultsEfficiency.to_csv('FinalResultsWithEfficientSub.csv', encoding='utf-8')
-                predictedResults.to_csv("predictedResultsEfficiency_fixed.csv", encoding='utf-8')
-    predictedResults.to_csv("predictedResultsEfficiency_fixed.csv", encoding='utf-8')
+                predictedResults.to_csv("predictedResultsEfficiency_pass_threshold.csv", encoding='utf-8')
+    predictedResults.to_csv("predictedResultsEfficiency_pass_threshold.csv", encoding='utf-8')
     return predictedResults
 
 
