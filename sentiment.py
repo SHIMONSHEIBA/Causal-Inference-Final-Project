@@ -9,8 +9,8 @@ from nltk.corpus import wordnet as wn
 from collections import defaultdict
 import nltk as nk
 import os
-import csv
-from os.path import join
+import pickle
+
 
 
 class Sentiment():
@@ -21,7 +21,7 @@ class Sentiment():
         self.base_directory = os.path.abspath(os.curdir)
         self.data_loc = os.path.join(self.base_directory, self.data_name)
         self.data = pd.DataFrame()
-        self.senti_dict = defaultdict(list)
+        self.senti_dict = defaultdict(dict)
         self.load_data()
 
     def load_data(self):
@@ -46,9 +46,11 @@ class Sentiment():
 
         return words_pos
 
-    def calc_comments_probs(self):
+    def calc_comments_probs(self, thresh):
 
         comment_index = 0
+        g = lambda x,y: True if x > y else False
+
         for comment in self.data.comment_body:
 
             if not type(comment) is str:
@@ -63,6 +65,9 @@ class Sentiment():
             comment_parsed = self.parse_comment(comment)
             words_pos = self.get_POS(comment_parsed)
             comment_prob_df = pd.DataFrame(columns=['pos','neg','obj'])
+            comment_pos_neg_rules_df = dict()
+            for thr in thresh:
+                comment_pos_neg_rules_df[str(thr)] = pd.DataFrame(columns=['pos', 'neg', 'obj'])
 
             for word in comment_parsed:
                 word_pos = words_pos[total_words_count][1]
@@ -78,12 +83,27 @@ class Sentiment():
                                                                'obj': wordnet0.obj_score()}])
                     comment_prob_df = comment_prob_df.append(word_prob_vc)
                     # print('probs for word {} are: {} '.format(word, word_prob_vc))
+
+                    # check for rules of pos/neg labels
+                    word_pos_neg_rules_vec = dict()
+                    for thr in thresh:
+                        word_pos_neg_rules_vec[str(thr)] = self.pos_neg_rules(thr , word_prob_vc)
+                        comment_pos_neg_rules_df[str(thr)] = comment_pos_neg_rules_df[str(thr)].\
+                            append(word_pos_neg_rules_vec[str(thr)])
                     calculated_words_count += 1
                 total_words_count += 1
-            self.senti_dict[comment_index] = {'comment_parsed': comment_parsed, 'total_words_count': total_words_count,
-                                                  'calculated_words_count': calculated_words_count,
-                                                  'comment_prob_df_mean': comment_prob_df.mean(axis=0),
-                                              'comment_senti': comment_prob_df.mean(axis=0).idxmax(axis=1)}
+            self.senti_dict[comment_index]['comment_parsed'] = comment_parsed
+            self.senti_dict[comment_index]['total_words_count'] = total_words_count
+            self.senti_dict[comment_index]['calculated_words_count'] = calculated_words_count
+            self.senti_dict[comment_index]['comment_prob_df_mean'] = comment_prob_df.mean(axis=0)
+            self.senti_dict[comment_index]['comment_senti'] = comment_prob_df.mean(axis=0).idxmax(axis=1)
+            for thr in thresh:
+                self.senti_dict[comment_index]['comment_'+str(thr)+'_cnt'] = comment_pos_neg_rules_df[str(thr)].sum()
+                self.senti_dict[comment_index]['comment_pos_greater_'+str(thr)] = \
+                    g(comment_prob_df[comment_prob_df['pos'] > 0.5]['pos'].mean(axis=0),
+                                                                                    comment_prob_df[
+                                                                                        comment_prob_df['neg'] > 0.5][
+                                                                                        'neg'].mean(axis=0))
 
 
             # print('comment probs are: {}'.format(comment_prob_df.mean(axis=0)))
@@ -95,10 +115,73 @@ class Sentiment():
             comment_index+=1
 
         print('saving senti dict')
-        util.save_dict(self.base_directory, 'senti dict', self.senti_dict)
+        util.save_dict(self.base_directory, ' senti dict_short', self.senti_dict)
 
         return
 
+    def senti_analyze_dict(self, dict_path, dict_name, thresh, word_num):
+
+        print('analyzing dict {}'.format(dict_path + dict_name))
+
+        pkl_file = open(dict_path + dict_name +'.pkl', 'rb')
+        senti_dict = pickle.load(pkl_file)
+        pkl_file.close()
+
+        neg_cnt = 0
+        obj_cnt = 0
+        pos_cnt = 0
+        comment_cnt = 0
+        thresh_dict = defaultdict(dict)
+        for thr in thresh:
+            thresh_dict[str(thr)]['pos']=0
+            thresh_dict[str(thr)]['neg'] = 0
+            thresh_dict[str(thr)]['obj'] = 0
+
+
+        for key, value in senti_dict.items():
+            if senti_dict[key]['comment_senti'] == 'pos':
+                pos_cnt +=1
+            elif senti_dict[key]['comment_senti'] == 'neg':
+                neg_cnt += 1
+            else:
+                obj_cnt +=1
+
+            for thr in thresh:
+                if senti_dict[key]['comment_pos_greater_' + str(thr)]:
+                    if senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] > word_num:
+                        thresh_dict[str(thr)]['pos']+=1
+                    else:
+                        thresh_dict[str(thr)]['obj'] += 1
+                else:
+                    if senti_dict[key]['comment_prob_df_mean']['neg'] > senti_dict[key]['comment_prob_df_mean']['pos']:
+                        if senti_dict[key]['comment_'+str(thr)+'_cnt']['neg'] > word_num:
+                            thresh_dict[str(thr)]['neg'] += 1
+                        else:
+                            thresh_dict[str(thr)]['obj'] += 1
+                    else:
+                        if senti_dict[key]['comment_prob_df_mean']['neg'] == 0:
+                            thresh_dict[str(thr)]['obj'] += 1
+                        else:
+                            #TODO: how many words passed thr 
+
+
+
+
+
+
+            comment_cnt +=1
+
+        print('out of {} comments, pos: {}, neg: {}, obj: {}'.format(comment_cnt,pos_cnt,neg_cnt,obj_cnt))
+        return
+
+    def pos_neg_rules(self, thresh, word_prob_vc):
+
+        f = lambda x: True if x > thresh else False
+        pos_neg_rules_vec = pd.DataFrame.from_records([{'pos': f(word_prob_vc.iloc[0, 2]),
+                                                        'neg': f(word_prob_vc.iloc[0, 0]),
+                                                        'obj': f(word_prob_vc.iloc[0, 1])}])
+
+        return pos_neg_rules_vec
 
 
 class util():
@@ -118,16 +201,29 @@ class util():
 
     @staticmethod
     def save_dict(dict_path, dict_name, dict):
-        w = csv.writer(open(dict_path + dict_name + '.csv', 'w'))
-        for key, val in dict.items():
-            w.writerow([key, val])
+
+        output = open(dict_path + dict_name + '.pkl', 'wb')
+        pickle.dump(dict, output)
+        output.close()
+
         print('finished saving dict')
 
 
 def main():
-    data_name = 'predictedResultsEfficiency_final.xlsx'
+    base_directory = os.path.abspath(os.curdir)
+    data_name = 'predictedResultsEfficiency_final_short.xlsx'
+    dict_name = ' senti dict_short'
+
+    # create sentiment object class
     sentiment = Sentiment(data_name)
-    sentiment.calc_comments_probs()
+
+    #classify comments
+    pos_neg_thresh = [0.65,0.7,0.8]
+    word_num = 3
+    sentiment.calc_comments_probs(pos_neg_thresh)
+
+    # analyze sentiment histogram
+    sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num)
 
 
 if __name__ == '__main__':
