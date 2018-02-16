@@ -161,13 +161,16 @@ class Sentiment:
                         if senti_dict[key]['comment_prob_df_mean']['neg'] == 0:
                             thresh_dict[str(thr)]['obj'] += 1
                         else:
-                            #TODO: how many words passed thr 
-
-
-
-
-
-
+                            if senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] > senti_dict[key]['comment_'+str(thr)
+                                    +'_cnt']['neg']:
+                                thresh_dict[str(thr)]['pos'] += 1
+                            elif senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] < senti_dict[key]['comment_'+str(thr)
+                                    +'_cnt']['neg']:
+                                thresh_dict[str(thr)]['neg'] += 1
+                            else:
+                                thresh_dict[str(thr)]['obj'] += 1
+                                print('comment with equal probs key is {} , is {}:'
+                                      .format(key,senti_dict[key]['comment_parsed']))
             comment_cnt +=1
 
         print('out of {} comments, pos: {}, neg: {}, obj: {}'.format(comment_cnt,pos_cnt,neg_cnt,obj_cnt))
