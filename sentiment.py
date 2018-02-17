@@ -114,7 +114,7 @@ class Sentiment:
             comment_index+=1
 
         print('saving senti dict')
-        util.save_dict(self.base_directory, ' senti dict_short', self.senti_dict)
+        util.save_dict(self.base_directory, ' senti dict', self.senti_dict)
 
         return
 
@@ -174,6 +174,14 @@ class Sentiment:
             comment_cnt +=1
 
         print('out of {} comments, pos: {}, neg: {}, obj: {}'.format(comment_cnt,pos_cnt,neg_cnt,obj_cnt))
+        for thr in thresh:
+            print('for thresh {}, pos: {}, neg: {}, obj: {}'.format(thr, thresh_dict[str(thr)]['pos'],
+                                                                    thresh_dict[str(thr)]['neg'],
+                                                                   thresh_dict[str(thr)]['obj']))
+
+        print('saving thresh dict')
+        util.save_dict(self.base_directory, ' thresh dict', thresh_dict)
+
         return
 
     def pos_neg_rules(self, thresh, word_prob_vc):
@@ -212,8 +220,8 @@ class util:
 
 def main():
     base_directory = os.path.abspath(os.curdir)
-    data_name = 'predictedResultsEfficiency_final_short.xlsx'
-    dict_name = ' senti dict_short'
+    data_name = 'predictedResultsEfficiency_final.xlsx'
+    dict_name = ' senti dict'
 
     # create sentiment object class
     sentiment = Sentiment(data_name)
