@@ -1,25 +1,24 @@
 
 # first run this, download() will open an installation gui
 
-# nltk.download()
-import pandas as pd
-# after installation you will be able to import this:
-from nltk.corpus import sentiwordnet as swn
-from nltk.corpus import wordnet as wn
-from collections import defaultdict
-import nltk as nk
 import os
 import pickle
-
+import pandas as pd
+# after installation you will be able to import this:
+# from nltk.corpus import sentiwordnet as swn
+# from nltk.corpus import wordnet as wn
+from collections import defaultdict
+import nltk as nk
+nk.download('punkt')
 
 
 class Sentiment:
 
-    def __init__(self, data_name):
+    def __init__(self, data_name, sub_directory=''):
 
         self.data_name = data_name
         self.base_directory = os.path.abspath(os.curdir)
-        self.data_loc = os.path.join(self.base_directory, self.data_name)
+        self.data_loc = os.path.join(self.base_directory, sub_directory, self.data_name)
         self.data = pd.DataFrame()
         self.senti_dict = defaultdict(dict)
         self.load_data()
@@ -49,7 +48,7 @@ class Sentiment:
     def calc_comments_probs(self, thresh):
 
         comment_index = 0
-        g = lambda x,y: True if x > y else False
+        g = lambda x, y: True if x > y else False
 
         for comment in self.data.comment_body:
 
@@ -64,7 +63,7 @@ class Sentiment:
 
             comment_parsed = self.parse_comment(comment)
             words_pos = self.get_POS(comment_parsed)
-            comment_prob_df = pd.DataFrame(columns=['pos','neg','obj'])
+            comment_prob_df = pd.DataFrame(columns=['pos', 'neg', 'obj'])
             comment_pos_neg_rules_df = dict()
             for thr in thresh:
                 comment_pos_neg_rules_df[str(thr)] = pd.DataFrame(columns=['pos', 'neg', 'obj'])
@@ -112,7 +111,7 @@ class Sentiment:
                                                                                              calculated_words_count,
                                                                               "{:.1%}".format(calculated_words_count/
                                                                                              total_words_count)))
-            comment_index+=1
+            comment_index += 1
 
         print('saving senti dict')
         util.save_dict(self.base_directory, ' senti dict', self.senti_dict)
@@ -123,7 +122,7 @@ class Sentiment:
 
         print('analyzing dict {}'.format(dict_path + dict_name))
 
-        pkl_file = open(dict_path + dict_name +'.pkl', 'rb')
+        pkl_file = open(dict_path + dict_name + '.pkl', 'rb')
         senti_dict = pickle.load(pkl_file)
         pkl_file.close()
 
@@ -134,7 +133,7 @@ class Sentiment:
             threshes = thresh
 
         labeled_df_name = 'labeled_data_thresh_{}_word_num_{}'.format(str(chosen_thresh),str(word_num))
-        labeled_data_df = pd.DataFrame(columns=['key','comment','treated'])
+        labeled_data_df = pd.DataFrame(columns=['key', 'comment','treated'])
         general_data_df = pd.DataFrame(columns=['key', 'comment', 'treated'])
 
         label = str()
@@ -144,23 +143,22 @@ class Sentiment:
         comment_cnt = 0
         thresh_dict = defaultdict(dict)
         for thr in threshes:
-            thresh_dict[str(thr)]['pos']=0
+            thresh_dict[str(thr)]['pos'] = 0
             thresh_dict[str(thr)]['neg'] = 0
             thresh_dict[str(thr)]['obj'] = 0
 
-
         for key, value in senti_dict.items():
             if senti_dict[key]['comment_senti'] == 'pos':
-                pos_cnt +=1
+                pos_cnt += 1
             elif senti_dict[key]['comment_senti'] == 'neg':
                 neg_cnt += 1
             else:
-                obj_cnt +=1
+                obj_cnt += 1
 
             for thr in threshes:
                 if senti_dict[key]['comment_pos_greater_' + str(thr)]:
                     if senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] > word_num:
-                        thresh_dict[str(thr)]['pos']+=1
+                        thresh_dict[str(thr)]['pos'] += 1
                         label = 'pos'
                     else:
                         thresh_dict[str(thr)]['obj'] += 1
@@ -179,25 +177,27 @@ class Sentiment:
                             label = 'obj'
                         else:
                             if senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] > senti_dict[key]['comment_'+str(thr)
-                                    +'_cnt']['neg']:
+                                    + '_cnt']['neg']:
                                 thresh_dict[str(thr)]['pos'] += 1
                                 label = 'pos'
                             elif senti_dict[key]['comment_'+str(thr)+'_cnt']['pos'] < senti_dict[key]['comment_'+str(thr)
-                                    +'_cnt']['neg']:
+                                    + '_cnt']['neg']:
                                 thresh_dict[str(thr)]['neg'] += 1
                                 label = 'neg'
                             else:
                                 thresh_dict[str(thr)]['obj'] += 1
                                 label = 'obj'
                                 print('comment with equal probs key is {} , is {}:'
-                                      .format(key,senti_dict[key]['comment_parsed']))
+                                      .format(key, senti_dict[key]['comment_parsed']))
 
-            comment_vc = pd.DataFrame.from_records([{'key':key, 'comment':senti_dict[key]['comment_parsed'],
-            'treated':label}])
-            comment_cnt +=1
+            comment_vc = pd.DataFrame.from_records([{'key': key, 'comment': senti_dict[key]['comment_parsed'],
+                                                     'treated':label}])
+            comment_cnt += 1
             labeled_data_df = labeled_data_df.append(comment_vc)
-            general_data_df = general_data_df.append(pd.DataFrame.from_records([{'key':key, 'comment':senti_dict[key]['comment_parsed'],
-            'treated':senti_dict[key]['comment_senti']}]))
+            general_data_df = general_data_df.append(pd.DataFrame.
+                                                     from_records([{'key': key,
+                                                                    'comment': senti_dict[key]['comment_parsed'],
+                                                                    'treated':senti_dict[key]['comment_senti']}]))
 
         print('out of {} comments, pos: {}, neg: {}, obj: {}'.format(comment_cnt,pos_cnt,neg_cnt,obj_cnt))
         for thr in threshes:
@@ -221,6 +221,7 @@ class Sentiment:
                                                         'obj': f(word_prob_vc.iloc[0, 1])}])
 
         return pos_neg_rules_vec
+
 
 class util:
 
@@ -249,17 +250,18 @@ class util:
 
 def main():
     base_directory = os.path.abspath(os.curdir)
-    data_name = 'predictedResultsEfficiency_final.xlsx'
+    data_name = 'Features_causality_final.xlsx'
+    sub_directory = 'features_results'
     dict_name = ' senti dict'
 
     # create sentiment object class
-    sentiment = Sentiment(data_name)
+    sentiment = Sentiment(data_name, sub_directory)
 
-    #classify comments
-    pos_neg_thresh = [0.65,0.7,0.8]
+    # classify comments
+    pos_neg_thresh = [0.65, 0.7, 0.8]
     word_num = 3
     chosen_thresh = 0.8
-    analyze_data = False
+    analyze_data = True
     analyze_labels = True
     if analyze_data:
         sentiment.calc_comments_probs(pos_neg_thresh)
