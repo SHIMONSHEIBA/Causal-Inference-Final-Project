@@ -1,3 +1,7 @@
+"""
+This module contains a class to set the treatment feature.
+"""
+
 
 # first run this, download() will open an installation gui
 
@@ -249,7 +253,7 @@ class util:
 
 def main():
     base_directory = os.path.abspath(os.curdir)
-    data_name = 'predictedResultsEfficiency_final.xlsx'
+    data_name = 'Features_causality_final.xlsx'
     dict_name = ' senti dict'
 
     # create sentiment object class
@@ -258,7 +262,7 @@ def main():
     #classify comments
     pos_neg_thresh = [0.65,0.7,0.8]
     word_num = 3
-    chosen_thresh = 0.8
+    chosen_thresh = 0.7
     analyze_data = False
     analyze_labels = True
     if analyze_data:
@@ -266,7 +270,10 @@ def main():
 
     if analyze_labels:
         # analyze sentiment histogram
-        sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num, chosen_thresh)
+        if chosen_thresh:
+            sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num, chosen_thresh)
+        else:
+            sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num)
 
 
 if __name__ == '__main__':
