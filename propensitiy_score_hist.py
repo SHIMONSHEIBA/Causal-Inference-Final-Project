@@ -90,21 +90,22 @@ class PropensityScore(object):
         """
 
         data = copy(self.data_dict[treatment])
+        hist_title = 'Histogram_' + propensity_column_name
+        plot = plt.figure(hist_title)
         plt.hist(data.loc[data[treatment] == 1][propensity_column_name], fc=(0, 0, 1, 0.5), bins=20, label='Treated')
         plt.hist(data.loc[data[treatment] == 0][propensity_column_name], fc=(1, 0, 0, 0.5), bins=20, label='Control')
         plt.legend()
-        hist_title = 'Histogram_' + propensity_column_name
         plt.title(hist_title)
         plt.xlabel('propensity score')
         plt.ylabel('number of units')
-        fig_to_save = plt.gcf()
+        fig_to_save = plot
         fig_to_save.savefig(os.path.join(propensity_directory, hist_title + '.png'), bbox_inches='tight')
 
         return
 
 
 def main():
-    features_data = pd.read_excel(os.path.join(features_directory, 'example.xlsx'))
+    features_data = pd.read_excel(os.path.join(features_directory, 'Features_causality_final.xlsx'))
     treatments_list = ['positive', 'negative']
     treatment_column_main = 'treated'
     variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',
@@ -118,9 +119,8 @@ def main():
     propensity_class = PropensityScore(data=features_data, variable_names=variable_name,
                                        treatment_column=treatment_column_main, treatments_list=treatments_list)
 
-    linear_formula = "treated ~ " + " + ".join(variable_name)
-
     for treatment in treatments_list:
+        linear_formula = treatment + '~ ' + '+'.join(variable_name)
         for method in ['logistic', 'probit', 'linear']:
             column_name = 'propensity_score_' + treatment + '_' + method
             propensity_class.data_dict[treatment][column_name] =\
