@@ -1,16 +1,20 @@
+"""
+This module contains a class to set the treatment feature.
+"""
+
 
 # first run this, download() will open an installation gui
 
-import os
-import pickle
+# nltk.download()
 import pandas as pd
 # after installation you will be able to import this:
-# from nltk.corpus import sentiwordnet as swn
-# from nltk.corpus import wordnet as wn
+from nltk.corpus import sentiwordnet as swn
+from nltk.corpus import wordnet as wn
 from collections import defaultdict
 import nltk as nk
 nk.download('punkt')
-
+import os
+import pickle
 
 class Sentiment:
 
@@ -268,7 +272,10 @@ def main():
 
     if analyze_labels:
         # analyze sentiment histogram
-        sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num, chosen_thresh)
+        if chosen_thresh:
+            sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num, chosen_thresh)
+        else:
+            sentiment.senti_analyze_dict(base_directory, dict_name, pos_neg_thresh, word_num)
 
 
 if __name__ == '__main__':
