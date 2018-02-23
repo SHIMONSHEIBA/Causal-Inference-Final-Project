@@ -47,7 +47,7 @@ class Imbalance:
         self.total_imbalance_unmatched = dict()
         self.total_imbalance_matched = dict()
         self.results = defaultdict(dict)
-        self.treatments_list = treatments_list
+        # self.treatments_list = treatments_list
         self.variable_names = variable_names
         for treat in self.treatments_list:
             self.treatment[treat] = data.loc[data[treatment_column] == treat]
