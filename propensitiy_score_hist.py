@@ -126,6 +126,8 @@ def main():
             propensity_class.data_dict[treatment][column_name] =\
                 propensity_class.estimate_propensity(treatment_name=treatment, method=method, formula=linear_formula)
             propensity_class.plot_propensity_hist(treatment=treatment, propensity_column_name=column_name)
+        propensity_class.data_dict[treatment].to_csv(os.path.join(propensity_directory,
+                                                                  'propensity_score_' + treatment + '.csv'))
 
 
 if __name__ == '__main__':
