@@ -27,6 +27,7 @@ class Sentiment:
         self.senti_dict = defaultdict(dict)
         self.load_data()
 
+
     def load_data(self):
 
         self.data = pd.read_excel(self.data_loc)

@@ -105,7 +105,7 @@ class PropensityScore(object):
 
 
 def main():
-    features_data = pd.read_excel(os.path.join(features_directory, 'Features_causality_final.xlsx'))
+    features_data = pd.read_excel(os.path.join(base_directory, 'final_features_causality.xlsx'))
     treatments_list = ['positive', 'negative']
     treatment_column_main = 'treated'
     variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',

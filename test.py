@@ -1,16 +1,34 @@
-# from scipy.stats import lognorm
-#
-# import pandas as pd
-# first = pd.read_excel('/Users/reutapel/Documents/Technion/Msc/096260 - causality/Causal-Inference-Final-Project/Causal-Inference-Final-Project/features_results/Features_causality_2.xlsx')
-# second = pd.read_excel('/Users/reutapel/Documents/Technion/Msc/096260 - causality/Causal-Inference-Final-Project/Causal-Inference-Final-Project/features_results/Features_causality.xlsx')
-# third = pd.read_excel('/Users/reutapel/Documents/Technion/Msc/096260 - causality/Causal-Inference-Final-Project/Causal-Inference-Final-Project/features_results/Features_causality_3.xlsx')
-#
-# final = pd.concat([first, second, third], axis=0)
-#
-# print(final.shape)
-#
-# final.to_csv('/Users/reutapel/Documents/Technion/Msc/096260 - causality/Causal-Inference-Final-Project/Causal-Inference-Final-Project/features_results/Features_causality_final.csv')
+import numpy as np
+import pandas as pd
 
+common_support_check = False
 
-import nltk
-nltk.download()
+# test trim common support
+if common_support_check:
+    d = {'propensity':[0.02,0.1,0.13,0.12,0.5,0.52,0.112,0.09,0.51,0.018],'treatment':[1,1,1,0,1,0,0,1,0,1]}
+    data = pd.DataFrame(data = d)
+
+    group_min_max = (data.groupby('treatment')
+                     .propensity.agg({"min_propensity": np.min, "max_propensity": np.max}))
+
+    min_common_support = np.max(group_min_max.min_propensity)
+    print('min common support:{}'.format(min_common_support))
+    max_common_support = np.min(group_min_max.max_propensity)
+    print('max common support:{}'.format(max_common_support))
+
+    common_support = (data.propensity >= min_common_support) & (data.propensity <= max_common_support)
+    control = (data['treatment'] == 0)
+    print('control:{}'.format(control))
+    treated = (data['treatment'] == 1)
+    print('treated:{}'.format(treated))
+    print(data[common_support])
+######################################################################
+d = {'propensity':[0.02,0.1,0.13,0.12,0.5,0.52,0.112,0.09,0.51,0.018],'treatment':[1,1,1,0,1,0,0,1,0,1]}
+data = pd.DataFrame(data = d)
+
+# print((data.groupby("treatment")
+#                          ["propensity"].agg({"min_propensity": np.min, "max_propensity": np.max})))
+min_common_support = 0.2
+print(data["propensity"] >= min_common_support)
+#     data.propensity)
+# print(data["propensity"])
