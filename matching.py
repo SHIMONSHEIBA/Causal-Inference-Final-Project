@@ -20,7 +20,7 @@ class Matching():
 
         return
 
-    def load_prepare_data(self, treatments_list, treatment_column, data_name):
+    def load_prepare_data(self, treatments_list, treatment_column,sub_directory, data_name, prepare = False):
         """
         This method loads the data and prepares binary columns for each value of the treatment feature
         :param treatments_list: all possible values of treatment feature
@@ -28,29 +28,17 @@ class Matching():
         :param data_name: data file name
         :return:
         """
+        data = os.path.join(self.base_directory, sub_directory, data_name)
+        if data_name[-3:] == 'csv':
+            self.data.from_csv(data)
+        else:
+            self.data = pd.read_excel(data)
 
-        self.data = pd.read_excel(os.path.join(self.base_directory, data_name))
-        for treat in treatments_list:
-            self.data[treat] = np.where(self.data[treatment_column] == treat, 1, 0)
-
+        if prepare:
+            for treat in treatments_list:
+                self.data[treat[0]] = np.where(self.data[treatment_column] == treat[0], 1, 0)
+                #print('number of treatments for: {}, is: treat: {}, non treat')
         return
-
-    def estimate_propensity(self, formula, data, show_summary=False):
-        """ Estimates a propensity model using generalized linear models.
-
-        Arguments:
-        ----------
-            formula:       String that contains the (R style) model formula.
-            data:          DataFrame containing the covariates for each observation.
-            show_summary:  Boolean that indicates to print out the model summary to the console.
-        """
-        model = smf.glm(formula=formula, data=data, family=sma.families.Binomial()).fit()
-
-        if show_summary:
-            print(model.summary())
-
-        return pd.Series(data=model.predict(data), index=data.index)
-
 
     def matching(self, label, propensity, calipher=0.05, replace=True):
         """ Performs nearest-neighbour matching for a sample of test and control
@@ -110,9 +98,11 @@ class Matching():
             return result
 
 
-    def trim_common_support(self, data, label_name):
+    def trim_common_support(self, data, label_name, propensity_column_name):
         """ Removes observations that fall outside the common support of the propensity score
             distribution from the data.
+            works with more than binary treatment
+
 
         Arguments:
         ----------
@@ -120,19 +110,34 @@ class Matching():
             label_name:  Column name that contains the labels (treatment/control) for each observation.
 
         """
+        print('original data size is: {}'.format(data.shape))
         group_min_max = (data.groupby(label_name)
-                         .propensity.agg({"min_propensity": np.min, "max_propensity": np.max}))
+                         [propensity_column_name].agg({"min_propensity": np.min, "max_propensity": np.max}))
 
         # Compute boundaries of common support between the two propensity score distributions
         min_common_support = np.max(group_min_max.min_propensity)
         max_common_support = np.min(group_min_max.max_propensity)
 
-        common_support = (data.propensity >= min_common_support) & (data.propensity <= max_common_support)
+        common_support = (data[propensity_column_name] >= min_common_support) & (data[propensity_column_name]
+                                                                                 <= max_common_support)
         control = (data[label_name] == 0)
+        print('before tream size of control for {} is {}'.format(label_name,control.sum()))
         treated = (data[label_name] == 1)
+        print('before tream size of treated for {} is {}'.format(label_name, treated.sum()))
 
+        treamed_data_points = common_support[common_support == False].index.tolist()
+        print("treamed data points of total {} indexes are: {}".format(len(treamed_data_points), treamed_data_points))
+        #TODO: check why when more than binary treatment, obs with propensity that is equal to limits
+        # min/max do not return
+
+        # Plot the resulting propensity score distribution to make sure we restricted ourselves to the common support
+        print('propensity distribution of treatment and control after common support trim:')
+        #TODO: fix saving plot
+        # data[common_support].groupby(label_name)[propensity_column_name].plot(kind="hist",
+        #                     sharex=True, range=(0, 1), bins=20, alpha=0.75).savefig('trimmed'+label_name+
+        #                                                                                 propensity_column_name+'.png')
+        print('treamed data size is: {}'.format(data[common_support].shape))
         return data[common_support]
-
 
     def qq_plot(self, x, y, variable_name):
         """ Produces a QQ-plot where the percentiles of two empirical distributions are compared against each other.
@@ -161,9 +166,10 @@ class Matching():
 def main():
 
     matching = Matching()
-    treatments_list = ['positive', 'negative']
-    treatment_column = 'treated'
-    data_name = 'final_features_causality.xlsx'
+    treatments_list = [['positive','propensity_score_positive.xlsx','propensity_score_positive_logistic'],
+                       ['negative','propensity_score_negative.xlsx','propensity_score_negative_logistic']]
+    sub_directory = 'propensity_score_results'
+    prepare_data = False
     #column_name = 'propensity_score_' + treatment + '_' + method
     variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',
                      'percent_efficient_references_comment_author', 'number_of_references_comment_author',
@@ -173,10 +179,42 @@ def main():
                      'comment_created_time_hour', 'submission_created_time_hour', 'time_between_messages',
                      'comment_len', 'number_of_r', 'comment_submission_similarity', 'comment_title_similarity',
                      'number_of_references_to_submission', 'number_of_references_to_recommended_subreddit']
+    for treats in treatments_list:
+        treatment_column = treats[0]
+        data_name = treats[1]
+        propensity_column_name = treats[2]
+        # load data and create treatment columns
+        matching.load_prepare_data(treatments_list, treatment_column, sub_directory, data_name, prepare_data)
 
-    # load data and create treatment columns
-    matching.load_prepare_data(treatments_list, treatment_column, data_name)
+        # following second assumption of common support, leave only data points that has probability greater than
+        # zero to be both treatment/control
+        common_support = matching.trim_common_support(matching.data, treatment_column, propensity_column_name)
 
-    
+        control = (common_support[treatment_column] == 0)
+        print('after tream size of control for {} is {}'.format(treatment_column,control.sum()))
+        treated = (common_support[treatment_column] == 1)
+        print('after tream size of treated for {} is {}'.format(treatment_column, treated.sum()))
+
+        matches = matching.matching(label=common_support[treatment_column],
+                       propensity=common_support[propensity_column_name],
+                       calipher=0.09,
+                       replace=False)
+
+        print('check if everybody got a match returns : {}'.format(sum([True if match == []
+                                                                        else False for match in matches]) == 0))
+
+        # return to df with all covariates
+        matches_data_frame = matching.matching_to_dataframe(match=matches,
+                                                   covariates=common_support,
+                                                   remove_duplicates=False)
+        # save matched df
+        print('matched data size for {} is {}'.format(treatment_column,matches_data_frame.shape))
+        matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'.csv')
+
+        #print("distribution of pre-treatment covariates:")
+        # TODO: fix saving plot
+        # matches_data_frame.groupby(treatment_column)[propensity_column_name].plot(kind="hist", sharex=True, range=(0, 1),
+        #                                                                           bins=20, alpha=0.75)
+
 if __name__ == '__main__':
     main()
