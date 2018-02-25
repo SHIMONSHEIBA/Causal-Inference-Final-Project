@@ -12,7 +12,7 @@ import os
 from sklearn.linear_model import LogisticRegression
 
 
-class Ate():
+class Ate:
 
     def __init__(self, data):
 
