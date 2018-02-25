@@ -105,7 +105,7 @@ class PropensityScore(object):
 
 
 def main():
-    features_data = pd.read_excel(os.path.join(base_directory, 'final_features_causality.xlsx'))
+    features_data = pd.read_excel(os.path.join(features_directory, 'final_features_causality.xlsx'))
     treatments_list = ['positive', 'negative']
     treatment_column_main = 'treated'
     variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',
@@ -116,6 +116,7 @@ def main():
                      'comment_created_time_hour', 'submission_created_time_hour', 'time_between_messages',
                      'comment_len', 'number_of_r', 'comment_submission_similarity', 'comment_title_similarity',
                      'number_of_references_to_submission', 'number_of_references_to_recommended_subreddit']
+    y_column_name = 'IsEfficient'
     propensity_class = PropensityScore(data=features_data, variable_names=variable_name,
                                        treatment_column=treatment_column_main, treatments_list=treatments_list)
 
@@ -126,8 +127,9 @@ def main():
             propensity_class.data_dict[treatment][column_name] =\
                 propensity_class.estimate_propensity(treatment_name=treatment, method=method, formula=linear_formula)
             propensity_class.plot_propensity_hist(treatment=treatment, propensity_column_name=column_name)
-        propensity_class.data_dict[treatment].to_csv(os.path.join(propensity_directory,
-                                                                  'propensity_score_' + treatment + '.csv'))
+        data_to_save = pd.concat([propensity_class.data_dict[treatment],
+                                  pd.DataFrame(copy(features_data[y_column_name]))], axis=1)
+        data_to_save.to_csv(os.path.join(propensity_directory, 'propensity_score_' + treatment + '.csv'))
 
 
 if __name__ == '__main__':
