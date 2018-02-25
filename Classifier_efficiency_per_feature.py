@@ -19,9 +19,10 @@ import math
 
 # Display progress logs on stdout
 base_directory = os.path.abspath(os.curdir)
-logs_directory = os.path.join(base_directory, 'new_logs')
-LOG_FILENAME = os.path.join(logs_directory, datetime.now().strftime
-('LogFile_100w2v_scale_newCV_no_Peff_Split_TimeComment_perFeature_stepwise_backward_causality_data_%d%m%Y%H%M.log'))
+logs_directory = os.path.join(base_directory, 'logs')
+results_directory = os.path.join(base_directory, 'choose_model_results')
+features_directory = os.path.join(base_directory, 'features_results')
+LOG_FILENAME = os.path.join(logs_directory, datetime.now().strftime('LogFile_causality_data_%d%m%Y%H%M.log'))
 logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO,)
 
 # parse commandline arguments
@@ -38,6 +39,9 @@ op.add_option("--split_Peff",
 op.add_option("--is_backward",
               action='store', default=True,
               help='whether to use backward elimination or forward selection, if True - use backward elimination')
+op.add_option("--is_backward_forward",
+              action='store', default=False,
+              help='whether to use backward or forward elimination selection, if False - dont use either')
 
 (opts, args) = op.parse_args()
 if len(args) > 0:
@@ -54,16 +58,9 @@ class Classifier:
         self.X_train = None
         self.features = None
         self.feature_names = None
-        print('{}: Loading the data: 100w2v_scale_2_causality'.
-              format((time.asctime(time.localtime(time.time())))))
-        self.original_data = pd.read_excel('100w2v_scale_2_causality.xlsx')
+        print('{}: Loading the data: final_features_causality'.format((time.asctime(time.localtime(time.time())))))
         self.labels = None
-        self.featuresDF = None
-
-        # for 50Doc2Vec:
-        # self.text_features = range(50)
-        # for Word2Vec and 100Doc2Vec:
-        self.text_features = range(100)
+        self.featuresDF = pd.read_excel(os.path.join(features_directory, 'final_features_causality_pos.xlsx'))
 
         self.group_dic = {0: [['submission_author_number_original_subreddit'],
                               'submission_author_number_original_subreddit'],
@@ -84,24 +81,20 @@ class Classifier:
                           14: [['number_of_references_to_recommended_subreddit'],
                                'number_of_references_to_recommended_subreddit'],
                           15: [['subreddits_similarity'], 'subreddits_similarity'],
-                          16: [self.text_features, 'text_features']
+                          16: [['treated'], 'treated'],
+                          17: [['percent_efficient_references_comment_author'],
+                               'percent_efficient_references_comment_author']
                           }
 
         print('{}: Data loaded '.format((time.asctime(time.localtime(time.time())))))
         return
 
 ###############################################################################
-    def split_relevant_data(self, Peff_up_threshold, Peff_down_threshold):
-        self.featuresDF = self.original_data.loc[(self.original_data['percent_efficient_references_comment_author'] <=
-                                                  Peff_up_threshold) &
-                                                 (self.original_data['percent_efficient_references_comment_author'] >=
-                                                  Peff_down_threshold)]
+    def split_relevant_data(self):
         # Split the data to k=15 groups, each comment_author in one group only
         i = 0
         number_sample_group = 0
-        if Peff_up_threshold == 50.0 or Peff_up_threshold == 60.0 or Peff_up_threshold == 100.0:
-            opts.k_fold = 4
-        sample_per_group = self.featuresDF.shape[0] / opts.k_fold
+        sample_per_group = math.floor(self.featuresDF.shape[0] / opts.k_fold)
         last_comment_author = ''
         for index, row in self.featuresDF.iterrows():
             if number_sample_group < sample_per_group:
@@ -134,17 +127,37 @@ class Classifier:
                      format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
         opts.k_fold = i + 1
         self.labels = self.featuresDF[['IsEfficient', 'group_number']]
-        print('{}: Finish split the data for Peff between: {} and {}'.
-              format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold))
-        logging.info('{}: Finish split the data for Peff between: {} and {}'.
-                     format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold))
+        print('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
+        logging.info('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
 
 
 ###############################################################################
-    def iterateOverFeaturesGroups(self, Peff_up_threshold, Peff_down_threshold):
+    def create_data_no_feature_selection(self):
+        selected_features = list(self.group_dic.keys())
+        features_group = [self.group_dic[group][0] for group in selected_features]
+        self.features = [item for sublist in features_group for item in sublist]
+        features = [item for sublist in features_group for item in sublist]
+        features.append('group_number')
+        self.X_train = self.featuresDF[features]
+        features_names = [self.group_dic[feature][1] for feature in selected_features]
+        print('{}: Start training with the groups: {}'.format((time.asctime(time.localtime(time.time()))),
+                                                              features_names))
+        logging.info('{}: Start training with the groups: {}'
+                     .format((time.asctime(time.localtime(time.time()))), features_names))
+        group_results = self.ModelsIteration()
+
+        for model in group_results:
+            model.append(features_names)
+            model.append(opts.k_fold)
+        columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold']
+        group_resultsDF = pd.DataFrame(group_results, columns=columns_names)
+
+        return group_resultsDF
+
+    def iterateOverFeaturesGroups(self):
         all_groups_results = pd.DataFrame()
         remaining_features = list(self.group_dic.keys())
-        if opts.is_backward:  # use backward elimination
+        if opts.is_backward:  # use backward elimination or none of them
             selected_features = list(self.group_dic.keys())
         else:  # use forward selection
             selected_features = []
@@ -190,10 +203,7 @@ class Classifier:
                 for model in group_results:
                     model.append(features_names)
                     model.append(opts.k_fold)
-                    model.append(Peff_up_threshold)
-                    model.append(Peff_down_threshold)
-                columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold',
-                                 'Peff_up_threshold', 'Peff_down_threshold']
+                columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold']
                 group_resultsDF = pd.DataFrame(group_results, columns=columns_names)
                 # group_results.append(group_names).append([opts.k_fold])
                 all_groups_results = all_groups_results.append(group_resultsDF, ignore_index=True)
@@ -210,23 +220,19 @@ class Classifier:
                 current_auc = best_new_auc
 
             else:
-                logging.info('{}: No candidate was chosen for threshold: {} and {}, number of selected features is {}.'.
-                             format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold,
-                                    len(selected_features)))
-                print('{}: No candidate was chosen for threshold: {} and {}, number of selected features is {}.'.
-                      format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold,
-                             len(selected_features)))
+                logging.info('{}: No candidate was chosen, number of selected features is {}.'.
+                             format((time.asctime(time.localtime(time.time()))), len(selected_features)))
+                print('{}: No candidate was chosen, number of selected features is {}.'.
+                      format((time.asctime(time.localtime(time.time()))), len(selected_features)))
 
             # one candidate can be chosen, if not- we go forward to the next step.
             remain_number_of_candidate -= 1
 
         selected_features_names = [self.group_dic[feature][1] for feature in selected_features]
-        logging.info('{}: Selected features for threshold: {} and {} are: {} and the best AUC is: {}'.
-                     format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold,
-                            selected_features_names, best_new_auc))
-        print('{}: Selected features for threshold: {} and {} are: {} and the best AUC is: {}.'.
-              format((time.asctime(time.localtime(time.time()))), Peff_down_threshold, Peff_up_threshold,
-                     selected_features_names, best_new_auc))
+        logging.info('{}: Selected features are: {} and the best AUC is: {}'.
+                     format((time.asctime(time.localtime(time.time()))), selected_features_names, best_new_auc))
+        print('{}: Selected features for are: {} and the best AUC is: {}.'.
+              format((time.asctime(time.localtime(time.time()))), selected_features_names, best_new_auc))
 
         return all_groups_results
 
@@ -234,10 +240,6 @@ class Classifier:
 ###############################################################################
 # benchmark classifiers
     def benchmark(self, clf, clf_name='default'):
-        # if I want to train only specific model:
-        # if clf_name != 'MultinomialNB':
-        #     print('Not training')
-        #     return ['not training', 0, 0, 0]
         print('_' * 80)
         print('{}: Traininig: {}'.format((time.asctime(time.localtime(time.time()))), clf))
         logging.info('_' * 80)
@@ -251,20 +253,16 @@ class Classifier:
         for out_group in range(opts.k_fold):
             t0 = time.time()
             # create train and test data
-            test_data = self.X_train.loc[self.X_train['group_number'] == out_group][self.features]
-            test_label = self.labels.loc[self.X_train['group_number'] == out_group]['IsEfficient']
-            train_data = self.X_train.loc[self.X_train['group_number'] != out_group][self.features]
-            train_label = self.labels.loc[self.X_train['group_number'] != out_group]['IsEfficient']
+            test_data = self.X_train.loc[self.X_train['group_number'] == out_group, self.features]
+            test_label = self.labels.loc[self.X_train['group_number'] == out_group, 'IsEfficient']
+            train_data = self.X_train.loc[self.X_train['group_number'] != out_group, self.features]
+            train_label = self.labels.loc[self.X_train['group_number'] != out_group, 'IsEfficient']
 
             # train the model
             clf.fit(train_data, train_label)
             predicted = clf.predict(test_data)
             score.append(metrics.accuracy_score(test_label, predicted))
             auc.append(metrics.roc_auc_score(test_label, predicted, average='samples'))
-            # print('fold number {}: accuracy: {}, AUC: {}'.format(out_group, metrics.accuracy_score(test_label,
-            #                                                                                        predicted),
-            #                                                      metrics.roc_auc_score(test_label, predicted,
-            #                                                                            average='samples')))
 
             logging.info("Fold number:")
             logging.info(out_group)
@@ -354,41 +352,10 @@ class Classifier:
 
 if __name__ == '__main__':
     classifier = Classifier()
-    # threshold_list = [0.0, 20.0, 60.0, 100.0]
-    threshold_list = [60.0, 100.0]
-    all_Peff_groups_results = pd.DataFrame()
-    for i in range(len(threshold_list) - 1):
-        classifier.split_relevant_data(threshold_list[i+1], threshold_list[i])
-        all_groups_results = classifier.iterateOverFeaturesGroups(threshold_list[i+1], threshold_list[i])
-        all_Peff_groups_results = all_Peff_groups_results.append(all_groups_results, ignore_index=True)
+    classifier.split_relevant_data()
+    if opts.is_backward_forward:
+        classifier_results = classifier.iterateOverFeaturesGroups()
+    else:
+        classifier_results = classifier.create_data_no_feature_selection()
 
-    classifiers_list = all_Peff_groups_results.classifier_name.unique()
-    groups_list = all_Peff_groups_results['features_list'].tolist()
-    groups_list.sort()
-    groups_list = [k for k, _ in itertools.groupby(groups_list)]
-    classifiers_results_dict = dict()
-    for i in classifiers_list:
-        for j in groups_list:
-            key = (i, tuple(j))
-            classifiers_results_dict[key] = []
-            classifiers_results_dict[key].append([])
-            classifiers_results_dict[key].append([])
-
-    for index, row in all_Peff_groups_results.iterrows():
-        classifiers_results_dict[(row['classifier_name'], tuple(row['features_list']))][1].append(row['auc'])
-        classifiers_results_dict[(row['classifier_name'], tuple(row['features_list']))][0].append(row['score'])
-
-    average_results_all_models = list()
-    for key in classifiers_results_dict.keys():
-        score_value = classifiers_results_dict[key][0]
-        auc_value = classifiers_results_dict[key][1]
-        average_result = [key[0], sum(score_value) / float(len(score_value)), sum(auc_value) / float(len(auc_value)),
-                          0.0, key[1], 'average', 0.0, 0.0]
-        average_results_all_models.append(average_result)
-    columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold',
-                     'Peff_up_threshold', 'Peff_down_threshold']
-    group_resultsDF = pd.DataFrame(average_results_all_models, columns=columns_names)
-
-    all_Peff_groups_results = all_Peff_groups_results.append(average_results_all_models, ignore_index=True)
-    all_Peff_groups_results.to_csv('results_final_split_no_Peff_time_per_feature_stepwise_backward_60100_causality.csv',
-                                   encoding='utf-8')
+    classifier_results.to_csv(os.path.join(results_directory, 'classifier_results.csv'), encoding='utf-8')
