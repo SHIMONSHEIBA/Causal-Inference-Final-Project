@@ -74,6 +74,7 @@ class ApiConnection:
 
         return
 
+
 def main():
     post_limit = 3000
     string_to_find = '/r/'
@@ -83,6 +84,7 @@ def main():
     # subid = connect.subreddit(post_limit)
     subid = 7
     connect.parse_comments(post_limit, subid, string_to_find)
+
 
 if __name__ == '__main__':
     main()
