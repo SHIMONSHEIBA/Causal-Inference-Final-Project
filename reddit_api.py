@@ -74,14 +74,16 @@ class ApiConnection:
 
         return
 
+
 def main():
     post_limit = 3000
     string_to_find = '/r/'
     sub_reddit = "diet"
     print('Run with {} hot submissions for sub reddit {}'.format(post_limit, sub_reddit))
-    connect = ApiConnection(sub_reddit)
+    connect = ApiConnection()
     subid = connect.subreddit(post_limit)
     connect.parse_comments(post_limit, subid, string_to_find)
+
 
 if __name__ == '__main__':
     main()
