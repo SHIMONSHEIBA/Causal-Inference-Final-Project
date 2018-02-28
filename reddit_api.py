@@ -24,7 +24,7 @@ class ApiConnection:
                                              + thing.score)
 
     def subreddit(self, post_limit):
-        subreddit = self.r_connection.get_subreddit(self.sub_reddit)
+        subreddit = self.r_connection.get_subreddit()
         subreddit_posts = subreddit.get_hot(limit=post_limit)
         subids = set()
         for submission in subreddit_posts:
@@ -33,11 +33,11 @@ class ApiConnection:
         return subid
 
     def parse_comments(self, post_limit, subid, string_to_find):
-        reference_comments = []
-        index = min(post_limit, len(subid))
+        comments = []
+        index = len(subid)
         for i in range(0, index):
             print('{}: start submission {}'.format((time.asctime(time.localtime(time.time()))), i))
-            submission = self.r_connection.get_submission(submission_id=subid[i])
+            submission = self.r_connection.submission(id=subid[i])
             print('{}: start more comments'.format((time.asctime(time.localtime(time.time())))))
             submission.replace_more_comments(limit=None, threshold=0)
             print('{}: start flat comments'.format((time.asctime(time.localtime(time.time())))))
@@ -48,21 +48,21 @@ class ApiConnection:
             for comment in flat_comments:
                 # if comment.id==u'da7f3xh':
                 #     r=1
-                if string_to_find in comment.body:
-                    reference_subreddit = comment.body[comment.body.find(string_to_find):].split(
-                        ('/'))  # split the body from /r/
-                    reference_subreddit = reference_subreddit[2][:reference_subreddit[2].find(' ')].encode(
-                        'utf-8')  # find the subreddit name in the reference
-                    reference_subreddit = [reference_subreddit]
-                    if 'edit' not in comment.body:
-                        if 'I am a bot, and this action was performed automatically' not in comment.body:
-                            if string_to_find + self.sub_reddit not in comment.body:
-                                if reference_subreddit in self.subreddits_list:
-                                    reference_comments.append(comment)
+                #if string_to_find in comment.body:
+                    # reference_subreddit = comment.body[comment.body.find(string_to_find):].split(
+                    #     ('/'))  # split the body from /r/
+                    # reference_subreddit = reference_subreddit[2][:reference_subreddit[2].find(' ')].encode(
+                    #     'utf-8')  # find the subreddit name in the reference
+                    # reference_subreddit = [reference_subreddit]
+                    # if 'edit' not in comment.body:
+                    #     if 'I am a bot, and this action was performed automatically' not in comment.body:
+                    #         if string_to_find + self.sub_reddit not in comment.body:
+                    #             if reference_subreddit in self.subreddits_list:
+                comments.append(comment)
 
                                     # real_comments = [comment for comment in flat_comments if string_to_find in comment.body]
                                     # reference_comments += real_comments
-        print(len(reference_comments))
+            print("number of comments for subid {} is {}".format(subid[i], len(comments)))
         with open(self.sub_reddit + ' reference comments.csv', 'w') as file:
             writer = csv.writer(file, lineterminator='\n')
             fieldnames2 = ['comment_body', 'comment_path', 'comment_id', 'parent_id', 'submission_id']
@@ -79,8 +79,9 @@ def main():
     string_to_find = '/r/'
     sub_reddit = "diet"
     print('Run with {} hot submissions for sub reddit {}'.format(post_limit, sub_reddit))
-    connect = ApiConnection(sub_reddit)
-    subid = connect.subreddit(post_limit)
+    connect = ApiConnection()
+    # subid = connect.subreddit(post_limit)
+    subid = 7
     connect.parse_comments(post_limit, subid, string_to_find)
 
 if __name__ == '__main__':

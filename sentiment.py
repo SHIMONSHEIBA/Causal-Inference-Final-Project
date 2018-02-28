@@ -2,7 +2,6 @@
 This module contains a class to set the treatment feature.
 """
 
-
 # first run this, download() will open an installation gui
 
 # nltk.download()
