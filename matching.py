@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-class Matching():
+class Matching:
 
     def __init__(self):
 

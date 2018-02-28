@@ -133,7 +133,6 @@ class Classifier:
         if True:  # subject == 'diet':
             with open('old data/diet_keto_percent_before_after_reference.csv', 'r') as csvfile:
                 dataMatrix = list(csv.reader(csvfile))
-
             i = 0
             for comment in dataMatrix:  # delete the header of the file
                 if comment[0] == 'comment_body':
