@@ -11,6 +11,7 @@ import statsmodels.api as sma
 import statsmodels.formula.api as smf
 from copy import copy
 import os
+from sklearn import metrics
 
 base_directory = os.path.abspath(os.curdir)
 features_directory = os.path.join(base_directory, 'features_results')
@@ -130,7 +131,7 @@ def main():
         data_to_save = pd.concat([propensity_class.data_dict[treatment],
                                   pd.DataFrame(copy(features_data[y_column_name]))], axis=1)
         data_to_save.to_csv(os.path.join(propensity_directory, 'propensity_score_' + treatment + '.csv'))
-
-
+        # estimate propensity method
+        print(metrics.roc_auc_score(test_label, propensity_class.data_dict[treatment][column_name], average='samples'))
 if __name__ == '__main__':
     main()
