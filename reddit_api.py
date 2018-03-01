@@ -3,6 +3,7 @@
 import praw
 import time
 import csv
+import pandas as pd
 
 
 class ApiConnection:
@@ -36,7 +37,7 @@ class ApiConnection:
         comments = []
         index = len(subid)
         for i in range(0, index):
-            print('{}: start submission {}'.format((time.asctime(time.localtime(time.time()))), i))
+            print('{}: start submission {} for id {}'.format((time.asctime(time.localtime(time.time()))), i, subid[i]))
             submission = self.r_connection.submission(id=subid[i])
             print('{}: start more comments'.format((time.asctime(time.localtime(time.time())))))
             submission.replace_more_comments(limit=None, threshold=0)
@@ -59,18 +60,25 @@ class ApiConnection:
                     #         if string_to_find + self.sub_reddit not in comment.body:
                     #             if reference_subreddit in self.subreddits_list:
                 comments.append(comment)
-
+                with open('all submissions and comments.csv', 'w') as file:
+                    writer = csv.writer(file, lineterminator='\n')
+                    fieldnames2 = ['comment_body', 'comment_path', 'comment_id', 'parent_id', 'submission_id']
+                    writer.writerow(fieldnames2)
+                    # for comment in reference_comments:
+                    writer.writerow([comment.body.encode('utf-8'), comment.permalink.encode('utf-8'),
+                                     comment.id.encode('utf-8'), comment.parent_id.encode('utf-8'),
+                                     comment.submission.id.encode('utf-8')])
                                     # real_comments = [comment for comment in flat_comments if string_to_find in comment.body]
                                     # reference_comments += real_comments
             print("number of comments for subid {} is {}".format(subid[i], len(comments)))
-        with open(self.sub_reddit + ' reference comments.csv', 'w') as file:
-            writer = csv.writer(file, lineterminator='\n')
-            fieldnames2 = ['comment_body', 'comment_path', 'comment_id', 'parent_id', 'submission_id']
-            writer.writerow(fieldnames2)
-            # for comment in reference_comments:
-            writer.writerow([comment.body.encode('utf-8'), comment.permalink.encode('utf-8'),
-                             comment.id.encode('utf-8'), comment.parent_id.encode('utf-8'),
-                             comment.submission.id.encode('utf-8')])
+        # with open(self.sub_reddit + ' reference comments.csv', 'w') as file:
+        #     writer = csv.writer(file, lineterminator='\n')
+        #     fieldnames2 = ['comment_body', 'comment_path', 'comment_id', 'parent_id', 'submission_id']
+        #     writer.writerow(fieldnames2)
+        #     # for comment in reference_comments:
+        #     writer.writerow([comment.body.encode('utf-8'), comment.permalink.encode('utf-8'),
+        #                      comment.id.encode('utf-8'), comment.parent_id.encode('utf-8'),
+        #                      comment.submission.id.encode('utf-8')])
 
         return
 
@@ -82,9 +90,9 @@ def main():
     print('Run with {} hot submissions for sub reddit {}'.format(post_limit, sub_reddit))
     connect = ApiConnection()
     # subid = connect.subreddit(post_limit)
-    subid = 7
+    subid = pd.read_excel("submission_ids.xlsx")
+    subid = subid["submission_id"].tolist()
     connect.parse_comments(post_limit, subid, string_to_find)
-
 
 if __name__ == '__main__':
     main()
