@@ -56,7 +56,7 @@ class ApiConnection:
                           'submission_clicked', 'submission_num_comments','submission_contest_mode', 'submission_media']
             writer.writerow(fieldnames)
         subids = set()
-        for submission in self.r_connection.subreddit(self.subreddit_name).top(limit=90000000):
+        for submission in self.r_connection.subreddit(self.subreddit_name).submissions():
             with open('all submissions.csv', 'a') as file:
                 writer = csv.writer(file, lineterminator='\n')
                 writer.writerow([submission.author, submission.title.encode('utf-8'),
