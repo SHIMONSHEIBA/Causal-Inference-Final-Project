@@ -48,29 +48,29 @@ class ApiConnection:
         submissions = list()
         with open('all submissions.csv', 'a') as file:
             writer = csv.writer(file, lineterminator='\n')
-            fieldnames = ['submission_author','submission_title', 'submission_comments_by_id', 'submission_created_utc',
+            fieldnames = ['submission_author', 'submission_title', 'submission_comments_by_id', 'submission_created_utc',
                           'submission_edited', 'submission_body', 'submission_id', 'submission_likes',
                           'submission_ups', 'submission_downs', 'submission_score','submission_num_reports',
-                          'submission_gilded','submission_distinguished', 'submission_is_crosspostable'
-                           'submission_banned_by', 'submission_banned_at_utc', 'submission_removal_reason',
-                          'submission_clicked', 'submission_num_comments','submission_contest_mode']
-
+                          'submission_gilded', 'submission_distinguished', 'submission_is_crosspostable'
+                          'submission_banned_by', 'submission_banned_at_utc', 'submission_removal_reason',
+                          'submission_clicked', 'submission_num_comments','submission_contest_mode', 'submission_media']
             writer.writerow(fieldnames)
         subids = set()
-        for submission in self.r_connection.subreddit(self.subreddit_name).top(limit = 900000000):
+        for submission in self.r_connection.subreddit(self.subreddit_name).top(limit=90000000):
             with open('all submissions.csv', 'a') as file:
                 writer = csv.writer(file, lineterminator='\n')
-                writer.writerow([submission.author,submission.title, submission._comments_by_id, submission.created_utc,
-                          submission.edited, submission.selftext, submission.id, submission.likes,
-                          submission.ups, submission.downs, submission.score,submission.num_reports,
-                          submission.gilded,submission.distinguished, submission.is_crosspostable,
-                          submission.banned_by, submission.banned_at_utc, submission.removal_reason,
-                          submission.clicked, submission.num_comments, submission.contest_mode])
-
+                writer.writerow([submission.author, submission.title.encode('utf-8'),
+                                 submission._comments_by_id, submission.created_utc,
+                                 submission.edited, submission.selftext.encode('utf-8'), submission.id,
+                                 submission.likes, submission.ups, submission.downs, submission.score,
+                                 submission.num_reports, submission.gilded, submission.distinguished,
+                                 submission.is_crosspostable, submission.banned_by, submission.banned_at_utc,
+                                 submission.removal_reason, submission.clicked, submission.num_comments,
+                                 submission.contest_mode, submission.media])
 
             subids.add(submission.id)
             submissions.append(submission)
-            num_of_total_submissions +=1
+            num_of_total_submissions += 1
             print("added submission id : {}".format(submission.id))
             print("total number of submissions so far is {}".format(num_of_total_submissions))
             logging.info("added submission id : {}".format(submission.id))
@@ -102,14 +102,15 @@ class ApiConnection:
             fieldnames2 = ['comment_author', 'comment_created_utc', 'comment_edited', 'comment_body',
                            'comment_path', 'comment_id', 'parent_id', 'submission_id', 'comment_is_submitter',
                            'comment_likes', 'comment_is_root', 'comment_ups', 'comment_downs', 'comment_score',
-                           'comment_num_reports','comment_gilded','comment_distinguished', 'comment_controversiality'
+                           'comment_num_reports', 'comment_gilded','comment_distinguished', 'comment_controversiality'
                            'comment_banned_by', 'comment_banned_at_utc', 'comment_depth', 'comment_removal_reason']
             writer.writerow(fieldnames2)
 
         # iterate all submissions
         for i in range(0, index):
             print('{}: start submission {} for id {}'.format((time.asctime(time.localtime(time.time()))), i, subid[i]))
-            logging.info('{}: start submission {} for id {}'.format((time.asctime(time.localtime(time.time()))), i, subid[i]))
+            logging.info('{}: start submission {} for id {}'.format((time.asctime(time.localtime(time.time()))), i,
+                                                                    subid[i]))
             submission = self.r_connection.submission(id=subid[i])
             print('{}: start more comments'.format((time.asctime(time.localtime(time.time())))))
             logging.info('{}: start more comments'.format((time.asctime(time.localtime(time.time())))))
@@ -126,14 +127,15 @@ class ApiConnection:
                 comments[subid[i]].append(comment)
                 with open('all submissions comments.csv', 'a') as file:
                     writer = csv.writer(file, lineterminator='\n')
-                    writer.writerow([comment.author,comment.created_utc,
+                    writer.writerow([comment.author, comment.created_utc,
                                      comment.edited,
                                      comment.body.encode('utf-8'), comment.permalink.encode('utf-8'),
                                      comment.id.encode('utf-8'), comment.parent_id.encode('utf-8'),
                                      comment.submission.id.encode('utf-8'),comment.is_submitter,
                                      comment.likes, comment.is_root, comment.ups, comment.downs, comment.score,
-                                     comment.num_reports, comment.gilded, comment.distinguished, comment.controversiality,
-                                     comment.banned_by, comment.banned_at_utc, comment.depth, comment.removal_reason])
+                                     comment.num_reports, comment.gilded, comment.distinguished,
+                                     comment.controversiality, comment.banned_by, comment.banned_at_utc, comment.depth,
+                                     comment.removal_reason])
             print("number of comments for subid {} is {}".format(subid[i], len(comments[subid[i]])))
             logging.info("number of comments for subid {} is {}".format(subid[i], len(comments[subid[i]])))
             num_of_total_comments += len(comments[subid[i]])
@@ -164,7 +166,6 @@ def main():
     print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
+
 if __name__ == '__main__':
     main()
-
-
