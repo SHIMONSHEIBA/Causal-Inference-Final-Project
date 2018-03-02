@@ -53,10 +53,11 @@ class ApiConnection:
                           'submission_ups', 'submission_downs', 'submission_score','submission_num_reports',
                           'submission_gilded', 'submission_distinguished', 'submission_is_crosspostable'
                           'submission_banned_by', 'submission_banned_at_utc', 'submission_removal_reason',
-                          'submission_clicked', 'submission_num_comments','submission_contest_mode', 'submission_media']
+                          'submission_clicked', 'submission_num_comments', 'submission_contest_mode',
+                          'submission_media']
             writer.writerow(fieldnames)
         subids = set()
-        for submission in self.r_connection.subreddit(self.subreddit_name).top(limit=90000000):
+        for submission in self.r_connection.subreddit(self.subreddit_name).submissions():
             with open('all submissions.csv', 'a') as file:
                 writer = csv.writer(file, lineterminator='\n')
                 writer.writerow([submission.author, submission.title.encode('utf-8'),
@@ -102,7 +103,7 @@ class ApiConnection:
             fieldnames2 = ['comment_author', 'comment_created_utc', 'comment_edited', 'comment_body',
                            'comment_path', 'comment_id', 'parent_id', 'submission_id', 'comment_is_submitter',
                            'comment_likes', 'comment_is_root', 'comment_ups', 'comment_downs', 'comment_score',
-                           'comment_num_reports', 'comment_gilded','comment_distinguished', 'comment_controversiality'
+                           'comment_num_reports', 'comment_gilded', 'comment_distinguished', 'comment_controversiality'
                            'comment_banned_by', 'comment_banned_at_utc', 'comment_depth', 'comment_removal_reason']
             writer.writerow(fieldnames2)
 
@@ -125,7 +126,7 @@ class ApiConnection:
             for comment in submission.comments.list():
 
                 comments[subid[i]].append(comment)
-                with open('all submissions and comments.csv', 'a') as file:
+                with open('all submissions comments.csv', 'a') as file:
                     writer = csv.writer(file, lineterminator='\n')
                     writer.writerow([comment.author, comment.created_utc,
                                      comment.edited,
