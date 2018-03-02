@@ -130,8 +130,6 @@ class ApiConnection:
                 comments[subid[i]].append(comment)
                 with open(os.path.join(self.results_directory, 'all submissions comments.csv'), 'a') as file:
                     writer = csv.writer(file, lineterminator='\n')
-                    if comment.id == 'dtnd84h':
-                        reut = 1
                     writer.writerow([comment.author, comment.created_utc,
                                      comment.edited,
                                      comment.body.encode('utf-8'), comment.permalink.encode('utf-8'),
