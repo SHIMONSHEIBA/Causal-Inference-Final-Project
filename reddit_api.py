@@ -174,7 +174,7 @@ class ApiConnection:
                                  delta.selftext.encode('utf-8'), delta.id.encode('utf-8'),delta.likes, delta.ups,
                                  delta.downs, delta.score, delta.name, delta.permalink.encode('utf-8')])
             num_of_total_deltas += 1
-            print("added delta id : {}".format(delta.id))
+            print("added delta id : {} of title: {}".format(delta.id, delta.title))
             print("total number of deltas so far is {}".format(num_of_total_deltas))
             logging.info("added delta id : {} of title: {}".format(delta.id, delta.title))
             logging.info("total number of deltas so far is {}".format(num_of_total_deltas))
