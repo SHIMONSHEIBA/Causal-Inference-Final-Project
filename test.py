@@ -41,21 +41,27 @@ comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\
                                                 "Causal-Inference-Final-Project\\"
                      "importing_change_my_view\\all submissions comments.csv", index_col=False)
 
+
 deltas = defaultdict(dict)
-token1 = 'Δ'
-token2 = '!delta'
-token3 = '∆'
-token4 = '&#8710;'
+OP_deltas_comments_ids = defaultdict(list)
+delta_tokens = ['Δ', '!delta', '∆', '&#8710;']
 num_of_deltas = 0
+OP_deltas = defaultdict(dict)
 for index, row in comments.iterrows():
-        if row.loc['comment_is_submitter'] == True and (token1 in row.loc['comment_body'] or
-                                                                token2 in row.loc['comment_body'] or
-                                                                token3 in row.loc['comment_body'] or
-                                                                token4 in row.loc['comment_body']) \
+        if row.loc['comment_is_submitter'] == True and (delta_tokens[0] in row.loc['comment_body'] or
+                                                                delta_tokens[1] in row.loc['comment_body'] or
+                                                                delta_tokens[2] in row.loc['comment_body'] or
+                                                                delta_tokens[3] in row.loc['comment_body']) \
                 and len(row.loc['comment_body']) > 50:
             num_of_deltas +=1
             print(num_of_deltas)
-
-
+            OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_date"] = row.comment_created_utc
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
+            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_submission_id"] = row.submission_id
 
 
