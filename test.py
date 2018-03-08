@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+import pickle
 # common_support_check = False
 #
 # # test trim common support
@@ -33,35 +34,38 @@ from collections import defaultdict
 # #     data.propensity)
 # # print(data["propensity"])
 
-submissions = pd.DataFrame()
-submissions = submissions.from_csv("C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\Causal-Inference-Final-Project\\"
-                     "importing_change_my_view\\all submissions.csv")
+# submissions = pd.DataFrame()
+# submissions = submissions.from_csv("C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\Causal-Inference-Final-Project\\"
+#                      "importing_change_my_view\\all submissions.csv")
+#
+# comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
+#                                                 "Causal-Inference-Final-Project\\"
+#                      "importing_change_my_view\\all submissions comments.csv", index_col=False)
+#
+# deltas = defaultdict(dict)
+# OP_deltas_comments_ids = defaultdict(list)
+# delta_tokens = ['Δ', '!delta', '∆', '&#8710;']
+# num_of_deltas = 0
+# OP_deltas = defaultdict(dict)
+# for index, row in comments.iterrows():
+#         if row.loc['comment_is_submitter'] == True and (delta_tokens[0] in row.loc['comment_body'] or
+#                                                                 delta_tokens[1] in row.loc['comment_body'] or
+#                                                                 delta_tokens[2] in row.loc['comment_body'] or
+#                                                                 delta_tokens[3] in row.loc['comment_body']) \
+#                 and len(row.loc['comment_body']) > 50:
+#             num_of_deltas +=1
+#             print(num_of_deltas)
+#             OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_date"] = row.comment_created_utc
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
+#             OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_submission_id"] = row.submission_id
+#
 
-comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                                "Causal-Inference-Final-Project\\"
-                     "importing_change_my_view\\all submissions comments.csv", index_col=False)
+pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
 
-
-deltas = defaultdict(dict)
-OP_deltas_comments_ids = defaultdict(list)
-delta_tokens = ['Δ', '!delta', '∆', '&#8710;']
-num_of_deltas = 0
-OP_deltas = defaultdict(dict)
-for index, row in comments.iterrows():
-        if row.loc['comment_is_submitter'] == True and (delta_tokens[0] in row.loc['comment_body'] or
-                                                                delta_tokens[1] in row.loc['comment_body'] or
-                                                                delta_tokens[2] in row.loc['comment_body'] or
-                                                                delta_tokens[3] in row.loc['comment_body']) \
-                and len(row.loc['comment_body']) > 50:
-            num_of_deltas +=1
-            print(num_of_deltas)
-            OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_date"] = row.comment_created_utc
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
-            OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_submission_id"] = row.submission_id
-
-
+data1 = pickle.load(pkl_file)
+print("data")

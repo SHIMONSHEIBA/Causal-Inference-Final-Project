@@ -5,7 +5,8 @@ import pickle
 import logging
 import os
 from datetime import datetime
-
+import pandas as pd
+from collections import defaultdict
 
 class ApiConnection:
 
@@ -84,8 +85,8 @@ class ApiConnection:
         # save all submissions object
         print("saving submissions list")
         logging.info("saving submissions list")
-        # with open('submissions.pickle', 'wb') as handle:
-        #     pickle.dump(submissions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('submissions.pickle', 'wb') as handle:
+            pickle.dump(submissions, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         return subid
 
@@ -145,13 +146,55 @@ class ApiConnection:
             print("total number of comments so far is {}".format(num_of_total_comments))
             logging.info("total number of comments so far is {}".format(num_of_total_comments))
 
+        # extract deltas from comments
+        all_submissions_comments = pd.read_csv(os.path.join(self.results_directory, 'all submissions comments.csv'))
+        self.get_deltas_manual(all_submissions_comments)
+
         # save all comments object
         # with open('comments.pickle', 'wb') as handle:
         #     pickle.dump(comments, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         return
 
-    def get_deltas(self, delta_log):
+    def get_deltas_manual(self, all_submissions_comments):
+
+        OP_deltas_comments_ids = defaultdict(list)
+        delta_tokens = ['Δ', '!delta', '∆', '&#8710;']
+        num_of_deltas = 0
+        OP_deltas = defaultdict(dict)
+
+        # find all delta comments and save their details in OP_deltas_comments_ids and the comments that got the delta
+        # ID in OP_deltas
+        for index, row in all_submissions_comments.iterrows():
+            if row.loc['comment_is_submitter'] == True and (delta_tokens[0] in row.loc['comment_body'] or
+                                                                    delta_tokens[1] in row.loc['comment_body'] or
+                                                                    delta_tokens[2] in row.loc['comment_body'] or
+                                                                    delta_tokens[3] in row.loc['comment_body']) \
+                    and len(row.loc['comment_body']) > 50:
+                num_of_deltas += 1
+                print("{} deltas".format(num_of_deltas))
+                OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
+                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
+                OP_deltas[(row.submission_id, row.parent_id)][
+                    row.comment_id + "_" + "delta_date"] = row.comment_created_utc
+                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
+                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
+                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
+                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
+                OP_deltas[(row.submission_id, row.parent_id)][
+                    row.comment_id + "_" + "delta_submission_id"] = row.submission_id
+
+        # save delta data
+        print("save delta data")
+        logging.info("save delta data")
+        with open('OP_deltas_comments_ids.pickle', 'wb') as handle:
+            pickle.dump(OP_deltas_comments_ids, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open('OP_deltas.pickle', 'wb') as handle:
+            pickle.dump(OP_deltas, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        return
+
+    def get_deltas_log(self, delta_log):
         """
         this method retrieves all deltas awarded in CMV and saves that log to a csv.
         :param delta_log: name of subreddit that holds all the deltas given in CMV subreddit
@@ -190,20 +233,18 @@ def main():
     # create class instance
     connect = ApiConnection(subreddit)
 
-    # get outcome from delta log
-    delta_log = 'DeltaLog'
-    connect.get_deltas(delta_log)
-
     # get submissions of sub reddit
     subids = connect.get_submissions()
 
     # get comments of submissions
     connect.parse_comments(subids)
 
-
     print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
+    # get outcome from delta log
+    delta_log = 'DeltaLog'
+    connect.get_deltas_log(delta_log)
 
 if __name__ == '__main__':
     main()
