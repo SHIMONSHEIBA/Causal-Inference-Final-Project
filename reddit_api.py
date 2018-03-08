@@ -84,8 +84,8 @@ class ApiConnection:
         # save all submissions object
         print("saving submissions list")
         logging.info("saving submissions list")
-        with open('submissions.pickle', 'wb') as handle:
-            pickle.dump(submissions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # with open('submissions.pickle', 'wb') as handle:
+        #     pickle.dump(submissions, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         return subid
 
@@ -146,8 +146,38 @@ class ApiConnection:
             logging.info("total number of comments so far is {}".format(num_of_total_comments))
 
         # save all comments object
-        with open('comments.pickle', 'wb') as handle:
-            pickle.dump(comments, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # with open('comments.pickle', 'wb') as handle:
+        #     pickle.dump(comments, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        return
+
+    def get_deltas(self, delta_log):
+        """
+        this method retrieves all deltas awarded in CMV and saves that log to a csv.
+        :param delta_log: name of subreddit that holds all the deltas given in CMV subreddit
+        :return:
+        """
+        num_of_total_deltas = 0
+
+        # create file
+        with open(os.path.join(self.results_directory, 'all deltas.csv'), 'a') as file:
+            writer = csv.writer(file, lineterminator='\n')
+            fieldnames = ['delta_author', 'delta_title', 'delta_created_utc', 'delta_selftext', 'delta_id',
+                          'delta_likes', 'delta_ups', 'delta_downs', 'delta_score', 'delta_name', 'delta_permalink']
+            writer.writerow(fieldnames)
+
+        # write all deltas to file
+        for delta in self.r_connection.subreddit(delta_log).submissions():
+            with open(os.path.join(self.results_directory, 'all deltas.csv'), 'a') as file:
+                writer = csv.writer(file, lineterminator='\n')
+                writer.writerow([delta.author, delta.title.encode('utf-8'), delta.created_utc,
+                                 delta.selftext.encode('utf-8'), delta.id.encode('utf-8'),delta.likes, delta.ups,
+                                 delta.downs, delta.score, delta.name, delta.permalink.encode('utf-8')])
+            num_of_total_deltas += 1
+            print("added delta id : {} of title: {}".format(delta.id, delta.title))
+            print("total number of deltas so far is {}".format(num_of_total_deltas))
+            logging.info("added delta id : {} of title: {}".format(delta.id, delta.title))
+            logging.info("total number of deltas so far is {}".format(num_of_total_deltas))
 
         return
 
@@ -160,12 +190,17 @@ def main():
     # create class instance
     connect = ApiConnection(subreddit)
 
+    # get outcome from delta log
+    delta_log = 'DeltaLog'
+    connect.get_deltas(delta_log)
+
     # get submissions of sub reddit
     subids = connect.get_submissions()
+
     # get comments of submissions
-    # subid = pd.read_excel("submission_ids_test.xlsx")
-    # subid = subid["submission_id"].tolist()
     connect.parse_comments(subids)
+
+
     print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
