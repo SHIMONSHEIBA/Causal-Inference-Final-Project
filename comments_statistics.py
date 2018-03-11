@@ -2,9 +2,9 @@ import pandas as pd
 import os
 
 base_directory = os.path.abspath(os.curdir)
-results_directory = os.path.join(base_directory, 'importing_change_my_view')
-comments = pd.read_pickle(os.path.join(results_directory, 'all submissions comments.pickle'))
-submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
+change_my_view_directory = os.path.join(base_directory, 'change my view')
+comments = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions comments with label.csv'))
+submissions = pd.read_excel(os.path.join(change_my_view_directory, 'all submissions.xlsx'))
 
 comments['submission_id'] = comments.submission_id.str.slice(2, -1)
 submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")
@@ -23,5 +23,9 @@ group_depth_count = group_depth.count()
 group_len_count = group_len.count()
 group_time_count = group_time.count()
 
-filter_results = join_result.loc[(join_result['time_between'] < 10080.0) & (join_result['comment_len'] > 150)]
-filter_results.to_csv(os.path.join(results_directory, 'filter_comments_submissions.csv'))
+filter_results = join_result.loc[(join_result['time_between'] < 10080.0) & (join_result['comment_len'] > 150)
+                                 & (join_result['comment_author'] != 'DeltaBot')
+                                 & (~join_result['comment_body'].str.contains('your comment has been removed:'))
+                                 & (join_result['comment_body'].str.contains('[deleted]'))]
+print(filter_results.shape)
+filter_results.to_csv(os.path.join(change_my_view_directory, 'filter_comments_submissions.csv'))

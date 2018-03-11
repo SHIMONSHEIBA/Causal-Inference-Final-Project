@@ -381,7 +381,6 @@ class ApiConnection:
         return
 
 
-
 def main():
 
     subreddit = 'changemyview'

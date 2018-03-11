@@ -132,6 +132,8 @@ def main():
                                   pd.DataFrame(copy(features_data[y_column_name]))], axis=1)
         data_to_save.to_csv(os.path.join(propensity_directory, 'propensity_score_' + treatment + '.csv'))
         # estimate propensity method
-        print(metrics.roc_auc_score(test_label, propensity_class.data_dict[treatment][column_name], average='samples'))
+        # print(metrics.roc_auc_score(test_label, propensity_class.data_dict[treatment][column_name], average='samples'))
+
+
 if __name__ == '__main__':
     main()
