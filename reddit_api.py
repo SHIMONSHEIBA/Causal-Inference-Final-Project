@@ -319,7 +319,7 @@ class ApiConnection:
         :return:
         """
 
-        #get data
+        # get data
         # TODO: change path & name to dynamic
         comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
                                                   "Causal-Inference-Final-Project\\"
