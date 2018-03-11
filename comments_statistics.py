@@ -3,7 +3,7 @@ import os
 
 base_directory = os.path.abspath(os.curdir)
 results_directory = os.path.join(base_directory, 'importing_change_my_view')
-comments = pd.read_pickle(os.path.join(results_directory, 'all submissions comments.pickle'))
+comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label_old.csv'))
 submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
 
 comments['submission_id'] = comments.submission_id.str.slice(2, -1)

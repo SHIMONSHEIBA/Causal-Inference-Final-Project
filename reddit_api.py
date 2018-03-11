@@ -151,39 +151,51 @@ class ApiConnection:
         all_submissions_comments = pd.read_csv(os.path.join(self.results_directory, 'all submissions comments.csv'))
         self.get_deltas_manual(all_submissions_comments)
 
-        # save all comments object
-        # with open('comments.pickle', 'wb') as handle:
-        #     pickle.dump(comments, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
         return
 
     def get_deltas_manual(self, all_submissions_comments):
 
+        delta_comments_depth_zero = pd.DataFrame(columns=['comment_id','parent_id'])
         OP_deltas_comments_ids = defaultdict(list)
-        delta_tokens = ['Δ', '!delta', '∆', '&#8710;']
+        delta_tokens = ['&amp;#8710;','&#8710;','&#916;','&amp;916;','∆','!delta', 'Δ','&delta;']
         num_of_deltas = 0
         OP_deltas = defaultdict(dict)
 
         # find all delta comments and save their details in OP_deltas_comments_ids and the comments that got the delta
         # ID in OP_deltas
         for index, row in all_submissions_comments.iterrows():
-            if row.loc['comment_is_submitter'] == True and (delta_tokens[0] in row.loc['comment_body'] or
-                                                                    delta_tokens[1] in row.loc['comment_body'] or
-                                                                    delta_tokens[2] in row.loc['comment_body'] or
-                                                                    delta_tokens[3] in row.loc['comment_body']) \
+
+            # check if legal delta
+            if row.loc['comment_is_submitter'] == True and any(delta_token in row.loc['comment_body'] for delta_token
+                                                               in delta_tokens) \
                     and len(row.loc['comment_body']) > 50:
-                num_of_deltas += 1
-                print("{} deltas".format(num_of_deltas))
-                OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
-                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
-                OP_deltas[(row.submission_id, row.parent_id)][
-                    row.comment_id + "_" + "delta_date"] = row.comment_created_utc
-                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
-                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
-                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
-                OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
-                OP_deltas[(row.submission_id, row.parent_id)][
-                    row.comment_id + "_" + "delta_submission_id"] = row.submission_id
+
+                # if delta's parent is submission:
+                if row.loc['comment_depth'] == 0:
+                    delta_comments_depth_zero.append([row.loc['comment_id'],row.loc['parent_id']])
+                    continue
+
+                #check that OP is not giving a delta to himself or to the deltabot
+                parent_id = row.loc['parent_id']
+                parent_id = parent_id.lstrip("b").strip("'").lstrip("t1_")
+                delta_comment = all_submissions_comments[all_submissions_comments["comment_id"]
+                                                             .str.lstrip("b").str.strip("'") == parent_id]
+                #print("parent_id is : {}".format(parent_id))
+                if (delta_comment.iloc[0]['comment_is_submitter'] == False) and \
+                        (delta_comment.iloc[0]['comment_author'] != "DeltaBot"):
+                    num_of_deltas += 1
+                    if num_of_deltas%100 ==0:
+                        print("{} deltas".format(num_of_deltas))
+                    OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
+                    OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
+                    OP_deltas[(row.submission_id, row.parent_id)][
+                        row.comment_id + "_" + "delta_date"] = row.comment_created_utc
+                    OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_body"] = row.comment_body
+                    OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_path"] = row.comment_path
+                    OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_id"] = row.comment_id
+                    OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_parent_id"] = row.parent_id
+                    OP_deltas[(row.submission_id, row.parent_id)][
+                        row.comment_id + "_" + "delta_submission_id"] = row.submission_id
 
         # save delta data
         print("save delta data")
@@ -192,6 +204,9 @@ class ApiConnection:
             pickle.dump(OP_deltas_comments_ids, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open('OP_deltas.pickle', 'wb') as handle:
             pickle.dump(OP_deltas, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        delta_comments_depth_zero.to_csv(path_or_buf="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
+                                                  "Causal-Inference-Final-Project\\"
+                                                  "importing_change_my_view\\delta_comments_depth_zero.csv")
 
         return
 
@@ -231,7 +246,7 @@ class ApiConnection:
 
     def parse_op_deltas(self):
         """
-        this method parse the text of each delta comment and saves the IDs of the ones given by OP
+        this method parse the text of each delta comment from delta log and saves the IDs of the ones given by OP
         :return: OP delta comment ids dict {submission id: [comments id]}
         """
         # TODO: change path & name to dynamic
@@ -311,7 +326,7 @@ class ApiConnection:
 
         return OP_deltas_comments_ids_deltalog
 
-    def create_label(self, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids):
+    def create_label(self,comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids):
         """
         this method creates a label for delta label
         :param OP_deltas_comments_ids_deltalog: dict of submission_id : comment id from deltalog
@@ -319,12 +334,6 @@ class ApiConnection:
         :return:
         """
 
-        #get data
-        # TODO: change path & name to dynamic
-        comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                                  "Causal-Inference-Final-Project\\"
-                                                  "importing_change_my_view\\all submissions comments.csv",
-                               index_col=False)
         # create label column
         comments["delta"] = 0
 
@@ -332,7 +341,6 @@ class ApiConnection:
         for index, row in comments.iterrows():
 
             if type(row.loc['comment_id']) is float:
-                # TODO: VALIDATE WHY SO MUCH NAN
                 print("not real comment id : {}".format(row.loc['comment_id']))
                 continue
 
@@ -341,7 +349,7 @@ class ApiConnection:
 
             # get delta comments of this submissionid
             try:
-                deltalog_comments = OP_deltas_comments_ids_deltalog[row.loc['submission_id']]
+                deltalog_comments = OP_deltas_comments_ids_deltalog[row.loc['submission_id'].lstrip("b").strip("'")]
             except ValueError:
                 print("no delta comments for submission: {} in deltalog".format(row.loc['submission_id']))
 
@@ -359,28 +367,12 @@ class ApiConnection:
                     or row.loc['comment_id'].lstrip("b").strip("'") in manual_comments:
                 comments.loc[index, "delta"] = 1
 
-        # see label distribution in data
-        print("VALUE COUNT:")
-        print(comments['delta'].value_counts())
-
-        # validate that total number of deltas equal to the label distribution above
-        count_deltas = list()
-        for key, value in OP_deltas_comments_ids_deltalog.items():
-            count_deltas += value
-        print("num of deltas in manual: {}".format(len(count_deltas)))
-        for k, value in OP_deltas_comments_ids.items():
-            count_deltas += value
-        count_deltas = list(set(count_deltas))
-        print("TOTAL {} deltas".format(len(count_deltas)))
-
         # save data with label
         #TODO: change path & name to dynamic
         comments.to_csv(path_or_buf="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
                                                   "Causal-Inference-Final-Project\\"
                                                   "importing_change_my_view\\all submissions comments with label.csv")
         return
-
-
 
 def main():
 
@@ -406,11 +398,15 @@ def main():
     # parse delta logs for OP deltas
     OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
 
+    all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
+                                              "Causal-Inference-Final-Project\\"
+                                              "importing_change_my_view\\all submissions comments.csv",index_col=False)
+
     #TODO: change save/load places to self class variables
     pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
     OP_deltas_comments_ids = pickle.load(pkl_file)
 
-    connect.create_label(OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
+    connect.create_label(all_submissions_comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
 
 if __name__ == '__main__':
     main()
