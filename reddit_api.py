@@ -9,6 +9,15 @@ import pandas as pd
 from collections import defaultdict
 import re
 
+# configurate logging
+base_directory = os.path.abspath(os.curdir)
+log_directory = os.path.join(base_directory, 'logs')
+results_directory = os.path.join(base_directory, 'importing_change_my_view')
+LOG_FILENAME = os.path.join(log_directory,
+                            datetime.now().strftime('LogFile_importing_change_my_view_%d_%m_%Y_%H_%M_%S.log'))
+logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, )
+
+
 class ApiConnection:
 
     def __init__(self, subreddit):
@@ -24,15 +33,6 @@ class ApiConnection:
         self.r_connection = praw.Reddit(client_id=ssheiba_client_id, user_agent=ssheiba_user_agent,
                                         client_secret=ssheiba_client_secret, username=user,password=password)
         self.subreddit_name = subreddit
-
-        # configurate logging
-        base_directory = os.path.abspath(os.curdir)
-        self.log_directory = os.path.join(base_directory, 'logs')
-        self.results_directory = os.path.join(base_directory, 'importing_change_my_view')
-        LOG_FILENAME = datetime.now().strftime(os.path.join(self.log_directory,
-                                                            datetime.now().strftime
-                                                            ('LogFile_importing_change_my_view_%d_%m_%Y_%H_%M_%S.log')))
-        logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO)
 
         return
 
@@ -50,7 +50,7 @@ class ApiConnection:
 
         num_of_total_submissions = 0
         submissions = list()
-        with open(os.path.join(self.results_directory, 'all submissions.csv'), 'a') as file:
+        with open(os.path.join(results_directory, 'all submissions.csv'), 'a') as file:
             writer = csv.writer(file, lineterminator='\n')
             fieldnames = ['submission_author', 'submission_title', 'submission_comments_by_id',
                           'submission_created_utc', 'submission_edited', 'submission_body', 'submission_id',
@@ -62,7 +62,7 @@ class ApiConnection:
             writer.writerow(fieldnames)
         subids = set()
         for submission in self.r_connection.subreddit(self.subreddit_name).submissions():
-            with open(os.path.join(self.results_directory, 'all submissions.csv'), 'a') as file:
+            with open(os.path.join(results_directory, 'all submissions.csv'), 'a') as file:
                 writer = csv.writer(file, lineterminator='\n')
                 writer.writerow([submission.author, submission.title.encode('utf-8'),
                                  submission._comments_by_id, submission.created_utc,
@@ -102,7 +102,7 @@ class ApiConnection:
         index = len(subid)
 
         # prepare the file
-        with open(os.path.join(self.results_directory, 'all submissions comments.csv'), 'a') as file:
+        with open(os.path.join(results_directory, 'all submissions comments.csv'), 'a') as file:
             writer = csv.writer(file, lineterminator='\n')
             fieldnames2 = ['comment_author', 'comment_created_utc', 'comment_edited', 'comment_body',
                            'comment_path', 'comment_id', 'parent_id', 'submission_id', 'comment_is_submitter',
@@ -130,7 +130,7 @@ class ApiConnection:
             for comment in submission.comments.list():
 
                 comments[subid[i]].append(comment)
-                with open(os.path.join(self.results_directory, 'all submissions comments.csv'), 'a') as file:
+                with open(os.path.join(results_directory, 'all submissions comments.csv'), 'a') as file:
                     writer = csv.writer(file, lineterminator='\n')
                     writer.writerow([comment.author, comment.created_utc,
                                      comment.edited,
@@ -148,7 +148,7 @@ class ApiConnection:
             logging.info("total number of comments so far is {}".format(num_of_total_comments))
 
         # extract deltas from comments
-        all_submissions_comments = pd.read_csv(os.path.join(self.results_directory, 'all submissions comments.csv'))
+        all_submissions_comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments.csv'))
         self.get_deltas_manual(all_submissions_comments)
 
         return
@@ -219,7 +219,7 @@ class ApiConnection:
         num_of_total_deltas = 0
 
         # create file
-        with open(os.path.join(self.results_directory, 'all deltas.csv'), 'a') as file:
+        with open(os.path.join(results_directory, 'all deltas.csv'), 'a') as file:
             writer = csv.writer(file, lineterminator='\n')
             fieldnames = ['delta_author', 'delta_title', 'delta_created_utc', 'delta_selftext', 'delta_id',
                           'delta_likes', 'delta_ups', 'delta_downs', 'delta_score', 'delta_name', 'delta_permalink']
@@ -227,7 +227,7 @@ class ApiConnection:
 
         # write all deltas to file
         for delta in self.r_connection.subreddit(delta_log).submissions():
-            with open(os.path.join(self.results_directory, 'all deltas.csv'), 'a') as file:
+            with open(os.path.join(results_directory, 'all deltas.csv'), 'a') as file:
                 writer = csv.writer(file, lineterminator='\n')
                 writer.writerow([delta.author, delta.title.encode('utf-8'), delta.created_utc,
                                  delta.selftext.encode('utf-8'), delta.id.encode('utf-8'),delta.likes, delta.ups,
