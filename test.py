@@ -47,7 +47,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 ########################################################################
 
 ###################################validate deltas##########################
-test_deltas = True
+test_deltas = False
 
 if test_deltas:
     comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
@@ -108,19 +108,22 @@ if test_deltas:
 
 ##########################similarity feature######################################
 
-test_similarity = False
+test_similarity = True
+
 
 if test_similarity:
 
     base_directory = os.path.abspath(os.curdir)
     results_directory = os.path.join(base_directory, 'importing_change_my_view')
-    comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label_old.csv'))
+    comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label.csv'))
     submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
 
     comments['submission_id'] = comments.submission_id.str.slice(2, -1)
     submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")
 
     join_result = comments.merge(submissions_drop, on='submission_id', how='inner')
+
+    join_result["submmiter_commenter_tfidf_cos_sim"] = 0
 
 
     def concat_df_rows(comment_created_utc, author, is_submission=False):
@@ -156,10 +159,20 @@ if test_similarity:
         text_submissioner = concat_df_rows(comment_created_utc, submission_author)
         text_submissioner_submission = concat_df_rows(comment_created_utc, submission_author, True)
         text_submissioner += text_submissioner_submission
-        #TODO: REMOVE STOPWORDS, make sure cosine normalizes vector length
+
         text = [text_submissioner, text_commenter]
-        tfidf = TfidfVectorizer().fit_transform(text)
+        tfidf = TfidfVectorizer(stop_words = 'english', lowercase = True, analyzer  = 'word', norm = 'l2',
+                                smooth_idf = True, sublinear_tf  = False, use_idf  = True).fit_transform(text)
         similarity = cosine_similarity(tfidf[0:], tfidf[1:])
-        print(similarity[0][0])
+
+        join_result["submmiter_commenter_tfidf_cos_sim"].loc[index, "submmiter_commenter_tfidf_cos_sim"] = \
+            similarity[0][0]
+
+        if similarity[0][0] > 0.9 or similarity[0][0] < 0.2:
+            print(similarity[0][0])
+            print("text submissioner:")
+            print(text_submissioner)
+            print("text commenter:")
+            print(text_commenter)
 
 ##################################################################################################
