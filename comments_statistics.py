@@ -29,3 +29,4 @@ filter_results = join_result.loc[(join_result['time_between'] < 10080.0) & (join
                                  & (join_result['comment_body'].str.contains('[deleted]'))]
 print(filter_results.shape)
 filter_results.to_csv(os.path.join(change_my_view_directory, 'filter_comments_submissions.csv'))
+filter_results.to_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions.pkl'))

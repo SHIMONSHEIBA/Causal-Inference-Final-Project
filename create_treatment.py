@@ -3,6 +3,7 @@ import os
 import logging
 from datetime import datetime
 from copy import copy
+import time
 
 
 base_directory = os.path.abspath(os.curdir)
@@ -18,16 +19,22 @@ class CreateTreatment:
     This class build the treatment column - if there is a quote in the comment T=1
     """
     def __init__(self):
-        self.data = pd.read_excel(os.path.join(change_my_view_directory, 'small_data.xlsx'))  # filter_comments_submissions
+        self.data = pd.read_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions.pkl'))
+        print('{}: Finish load data'.format(time.asctime(time.localtime(time.time()))))
         self.data.assign(treated='')
 
     def loop_over_data(self):
         """
-        Check if there is a quote in the comment.
-        Check if it is a quote of a comment of the submitter or the submission itself
-        :return:
+        Go over all the comments, for each quote potential check if there is a quote in check_quote
         """
+        print('{}: Start loop over data'.format(time.asctime(time.localtime(time.time()))))
+        new_index = 0
         for index, comment in self.data.iterrows():
+            if new_index % 100 == 0:
+                print('{}: Start create treatment for comment number {}, with comment index {}'.
+                      format((time.asctime(time.localtime(time.time()))), new_index, index))
+                logging.info('{}: Start create treatment for comment number {}, with comment index {}'.
+                             format((time.asctime(time.localtime(time.time()))), new_index, index))
             comment_body = copy(comment['comment_body'])
             is_quote = 0
             if '>' in comment_body:  # this is the sign for a quote (|) in the comment
@@ -38,9 +45,22 @@ class CreateTreatment:
             else:  # there is not quote at all
                 self.data.loc[index, 'treated'] = 0
 
+            # Save the DF after each comment
+            self.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment.pkl'))
+            new_index += 1
+
         return
 
     def check_quote(self, comment, comment_body, index):
+        """
+        Check if there is a quote in the comment.
+        Check if it is a quote of a comment of the submitter or the submission itself
+        Save the result in the data DF
+        :param pandas series comment: a series with all the comment's information
+        :param str comment_body: the comment's body
+        :param int index: the index of the comment in the data DF
+        :return: 0 if there is no quote in this part of comment, 1 if there is
+        """
         comment_id = comment['comment_id']
         if '>>>' in comment_body:
             print('There is >>> in comment_id: {}'.format(comment['comment_id']))
@@ -127,6 +147,7 @@ def main():
     # treatment_object.data.to_excel(writer, 'data_label_treatment')
     # writer.save()
     treatment_object.data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment.csv'))
+    treatment_object.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment.pkl'))
 
 
 if __name__ == '__main__':
