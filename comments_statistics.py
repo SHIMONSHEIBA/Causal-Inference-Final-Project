@@ -19,6 +19,9 @@ group_depth = join_result.groupby('comment_depth')['comment_id']
 group_len = join_result.groupby('comment_len')['comment_id']
 group_time = join_result.groupby('time_between')['comment_id']
 
+# join_result.to_csv(os.path.join(change_my_view_directory, 'all_comments_submissions.csv'))
+# join_result.to_pickle(os.path.join(change_my_view_directory, 'all_comments_submissions.pkl'))
+
 group_depth_count = group_depth.count()
 group_len_count = group_len.count()
 group_time_count = group_time.count()
@@ -28,5 +31,19 @@ filter_results = join_result.loc[(join_result['time_between'] < 10080.0) & (join
                                  & (~join_result['comment_body'].str.contains('your comment has been removed:'))
                                  & (join_result['comment_body'].str.contains('[deleted]'))]
 print(filter_results.shape)
-filter_results.to_csv(os.path.join(change_my_view_directory, 'filter_comments_submissions.csv'))
-filter_results.to_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions.pkl'))
+
+filter_results = filter_results.loc[(filter_results['comment_author'] != filter_results['submission_author'])]
+print(filter_results.shape)
+delta = filter_results.loc[filter_results['delta'] == 1]
+print(delta.shape)
+sub_delta = delta['submission_id']
+sub_delta = sub_delta.drop_duplicates()
+sub_delta = list(sub_delta)
+after_17 = filter_results.loc[(filter_results['comment_created_utc'] >= 1483228800) & (filter_results['delta'] == 0)]
+before_17_no_delta_from_sub_delta = filter_results.loc[(filter_results['submission_id'].isin(sub_delta)) &
+                                                       (filter_results['delta'] == 0) &
+                                                       (filter_results['comment_created_utc'] < 1483228800)]
+final_results = pd.concat([delta, after_17, before_17_no_delta_from_sub_delta])
+
+final_results.to_csv(os.path.join(change_my_view_directory, 'filter_comments_submissions_new_filter.csv'))
+final_results.to_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions_new_filter.pkl'))

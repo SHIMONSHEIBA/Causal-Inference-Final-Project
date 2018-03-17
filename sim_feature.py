@@ -5,7 +5,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-
 class Sim:
 
     def __init__(self, join_result):
@@ -64,14 +63,14 @@ class Sim:
                 print("text commenter:")
                 print(text_commenter)
 
-        #save results with new feature
+        # save results with new feature
         self.join_result.to_csv("join_result_with_sim_tfidf_cos")
 
 
 def main():
 
     # TODO: debug when submission and comment are exactly same text
-    #config path and load data
+    # config path and load data
     base_directory = os.path.abspath(os.curdir)
     results_directory = os.path.join(base_directory, 'importing_change_my_view')
     comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label.csv'))
@@ -85,6 +84,7 @@ def main():
 
     sim = Sim(join_result)
     sim.calc_tf_idf_cos()
+
 
 if __name__ == '__main__':
     main()

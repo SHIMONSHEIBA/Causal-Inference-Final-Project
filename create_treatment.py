@@ -20,14 +20,17 @@ class CreateTreatment:
     """
     def __init__(self):
         self.data = pd.read_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions.pkl'))
+        self.all_data = pd.read_csv(os.path.join(change_my_view_directory, 'all_comments_submissions.csv'))
+        self.all_data = self.all_data[['comment_body', 'comment_id', 'comment_author']]
         print('{}: Finish load data'.format(time.asctime(time.localtime(time.time()))))
         self.data.assign(treated='')
+        self.data_label_treatment = pd.DataFrame()
 
     def loop_over_data(self):
         """
         Go over all the comments, for each quote potential check if there is a quote in check_quote
         """
-        print('{}: Start loop over data'.format(time.asctime(time.localtime(time.time()))))
+        print('{}  : Start loop over data'.format(time.asctime(time.localtime(time.time()))))
         new_index = 0
         for index, comment in self.data.iterrows():
             if new_index % 100 == 0:
@@ -46,7 +49,8 @@ class CreateTreatment:
                 self.data.loc[index, 'treated'] = 0
 
             # Save the DF after each comment
-            self.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment.pkl'))
+            # self.data_label_treatment = pd.concat([self.data_label_treatment, self.data.loc[index]], axis=1)
+            # self.data_label_treatment.T.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment.csv'))
             new_index += 1
 
         return
@@ -62,26 +66,27 @@ class CreateTreatment:
         :return: 0 if there is no quote in this part of comment, 1 if there is
         """
         comment_id = comment['comment_id']
-        if '>>>' in comment_body:
-            print('There is >>> in comment_id: {}'.format(comment['comment_id']))
-            logging.info('There is >>> in comment_id: {}'.format(comment['comment_id']))
-        if '>>' in comment_body:  # this is the sign of a higher hierarchy - there might be another quote after it
-            double_index = comment_body.find('>>')
-            uni_index = comment_body.find('> ')
-            if uni_index == -1:  # there is no > in the comment
-                print('only >> and not > in comment_id: {}'.format(comment_id))
-                logging.info('only >> and not > in comment_id: {}'.format(comment_id))
-            elif uni_index < double_index:  # there is quote before the higher hierarchy quote
-                comment_body = comment_body
-            else:  # there is a quote after the higher hierarchy
-                comment_body_short = comment_body[double_index + 2:]  # the body without the '>>'
-                # if '>' in comment_body_short:  # there is another quote - we need it
-                #     comment_body = copy(comment_body_short)
-                #     uni_index = comment_body.find('>')
-                #     comment_body = copy(comment_body[uni_index:])  # get the comment from the inner quote
-                if '>' not in comment_body_short:
-                    print('There is a >> but not > after it in comment_id: {}'.format(comment_id))
-                    logging.info('There is a >> but not > after it in comment_id: {}'.format(comment_id))
+        # if '>>>' in comment_body:
+        #     print('There is >>> in comment_id: {}'.format(comment['comment_id']))
+        #     logging.info('There is >>> in comment_id: {}'.format(comment['comment_id']))
+        # if '>>' in comment_body:  # this is the sign of a higher hierarchy - there might be another quote after it
+        #     double_index = comment_body.find('>>')
+        #     uni_index = comment_body.find('> ')
+        #     if uni_index == -1:  # there is no > in the comment
+        #         print('only >> and not > in comment_id: {}'.format(comment_id))
+        #         logging.info('only >> and not > in comment_id: {}'.format(comment_id))
+        #     elif uni_index < double_index:  # there is quote before the higher hierarchy quote
+        #         comment_body = comment_body
+        #     else:  # there is a quote after the higher hierarchy
+        #         comment_body_short = comment_body[double_index + 2:]  # the body without the '>>'
+        #         # if '>' in comment_body_short:  # there is another quote - we need it
+        #         #     comment_body = copy(comment_body_short)
+        #         #     uni_index = comment_body.find('>')
+        #         #     comment_body = copy(comment_body[uni_index:])  # get the comment from the inner quote
+        #         if '>' not in comment_body_short:
+        #             print('There is a >> but not > after it in comment_id: {}'.format(comment_id))
+        #             logging.info('There is a >> but not > after it in comment_id: {}'.format(comment_id))
+        no_parent = False
         quote = copy(comment_body)
         nn_index = quote.find('\\n')
         n_index = quote.find('\n')
@@ -107,14 +112,15 @@ class CreateTreatment:
             parent_author = comment['submission_author']
         else:  # if not - get the parent
             parent_id = "b'" + parent_id + "'"
-            values = self.data.loc[self.data['comment_id'] == parent_id]
-            if values.empty:  # if we don't have the parent as comment in the data
+            parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
+            if parent.empty:  # if we don't have the parent as comment in the data
                 print('no parent comment for comment_id: {}'.format(comment_id))
                 logging.info('no parent comment for comment_id: {}'.format(comment_id))
                 parent_body = ''
                 parent_author = ''
+                no_parent = True
             else:
-                parent = pd.Series(values.iloc[0])
+                parent = pd.Series(parent.iloc[0])
                 parent_body = parent['comment_body']
                 parent_author = parent['comment_author']
         submission_author = comment['submission_author']
@@ -136,7 +142,12 @@ class CreateTreatment:
                 logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 return 1
             else:
-                self.data.loc[index, 'treated'] = 0
+                if no_parent:
+                    # if there is no parent and he didn't quote the submission, we can't know if he quote the parent
+                    # - so maybe we don't need to use it
+                    self.data.loc[index, 'treated'] = -1
+                else:
+                    self.data.loc[index, 'treated'] = 0
                 return 0
 
 
@@ -146,8 +157,8 @@ def main():
     # writer = pd.ExcelWriter(os.path.join(change_my_view_directory, 'data_label_treatment.xlsx'))
     # treatment_object.data.to_excel(writer, 'data_label_treatment')
     # writer.save()
-    treatment_object.data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment.csv'))
-    treatment_object.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment.pkl'))
+    treatment_object.data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all.csv'))
+    treatment_object.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all.pkl'))
 
 
 if __name__ == '__main__':
