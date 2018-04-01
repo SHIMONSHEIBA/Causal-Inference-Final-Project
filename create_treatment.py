@@ -19,12 +19,11 @@ class CreateTreatment:
     This class build the treatment column - if there is a quote in the comment T=1
     """
     def __init__(self):
-        self.data = pd.read_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions.pkl'))
-        self.all_data = pd.read_csv(os.path.join(change_my_view_directory, 'all_comments_submissions.csv'))
+        self.units = pd.read_csv(os.path.join(change_my_view_directory, 'units.csv'))
+        self.all_data = pd.read_csv(os.path.join(change_my_view_directory, 'all_data.csv'))
         self.all_data = self.all_data[['comment_body', 'comment_id', 'comment_author']]
         print('{}: Finish load data'.format(time.asctime(time.localtime(time.time()))))
-        self.data.assign(treated='')
-        self.data_label_treatment = pd.DataFrame()
+        self.units.assign(treated='')
 
     def loop_over_data(self):
         """
@@ -32,7 +31,7 @@ class CreateTreatment:
         """
         print('{}  : Start loop over data'.format(time.asctime(time.localtime(time.time()))))
         new_index = 0
-        for index, comment in self.data.iterrows():
+        for index, comment in self.units.iterrows():
             if new_index % 100 == 0:
                 print('{}: Start create treatment for comment number {}, with comment index {}'.
                       format((time.asctime(time.localtime(time.time()))), new_index, index))
@@ -46,12 +45,17 @@ class CreateTreatment:
                     comment_body = comment_body[quote_index + 1:]
                     is_quote = self.check_quote(comment, comment_body, index)
             else:  # there is not quote at all
-                self.data.loc[index, 'treated'] = 0
+                self.units.loc[index, 'treated'] = 0
 
-            # Save the DF after each comment
-            # self.data_label_treatment = pd.concat([self.data_label_treatment, self.data.loc[index]], axis=1)
-            # self.data_label_treatment.T.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment.csv'))
             new_index += 1
+
+        print('data shape before filter -1 is: {}'.format(self.units.shape))
+        final_data = self.units.loc[self.units['treated'] != -1]
+        print('data shape after filter -1 is: {}'.format(final_data.shape))
+        self.units.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_1.csv'))
+        self.units.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_1.pkl'))
+        final_data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all.csv'))
+        final_data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all.pkl'))
 
         return
 
@@ -130,14 +134,14 @@ class CreateTreatment:
         if submission_author == parent_author:  # check if the parent author is the submitter
             # if he quote the submission or the parent
             if (quote in parent_body) or (quote in submission_body) or (quote in submission_title):
-                self.data.loc[index, 'treated'] = 1
+                self.units.loc[index, 'treated'] = 1
                 return 1
             else:  # he didn't quote the submitter
-                self.data.loc[index, 'treated'] = 0
+                self.units.loc[index, 'treated'] = 0
                 return 0
         else:  # if the parent author is not the submitter
             if (quote in submission_body) or (quote in submission_title):  # we only care of he quote the submission:
-                self.data.loc[index, 'treated'] = 1
+                self.units.loc[index, 'treated'] = 1
                 print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 return 1
@@ -145,20 +149,15 @@ class CreateTreatment:
                 if no_parent:
                     # if there is no parent and he didn't quote the submission, we can't know if he quote the parent
                     # - so maybe we don't need to use it
-                    self.data.loc[index, 'treated'] = -1
+                    self.units.loc[index, 'treated'] = -1
                 else:
-                    self.data.loc[index, 'treated'] = 0
+                    self.units.loc[index, 'treated'] = 0
                 return 0
 
 
 def main():
     treatment_object = CreateTreatment()
     treatment_object.loop_over_data()
-    # writer = pd.ExcelWriter(os.path.join(change_my_view_directory, 'data_label_treatment.xlsx'))
-    # treatment_object.data.to_excel(writer, 'data_label_treatment')
-    # writer.save()
-    treatment_object.data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all.csv'))
-    treatment_object.data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all.pkl'))
 
 
 if __name__ == '__main__':

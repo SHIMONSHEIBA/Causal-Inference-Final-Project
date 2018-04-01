@@ -3,35 +3,36 @@ from time import time
 import time
 import math
 from datetime import datetime
+import logging
 import pytz
-from optparse import OptionParser
-import sys
+from copy import copy
 import os
 import urllib.parse
 import urllib.request
 import nltk as nk
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-
-
-op = OptionParser()
-op.add_option('--efficient_threshold',
-              action='store', type=int, default=0.8,
-              help='threshold for efficient reference according to classifier score')
-op.add_option('--use_date_threshold',
-              action='store', default=True,
-              help='take only data about comments and submissions that published before the comment')
-op.add_option('--pickel_not_saved',
-              action='store', default=False,
-              help='did I have already saved the subreddit_dict into pickel --> just need to load it')
-
-(opts, args) = op.parse_args()
-if len(args) > 0:
-    op.error("this script takes no arguments.")
-    sys.exit(1)
+from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+import string
+import gensim
+from gensim import corpora
+from nltk.stem import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
+from gensim.sklearn_api import ldamodel
 
 base_directory = os.path.abspath(os.curdir)
 data_directory = os.path.join(base_directory, "change my view")
+
+log_directory = os.path.join(base_directory, 'logs')
+LOG_FILENAME = os.path.join(log_directory,
+                            datetime.now().strftime('LogFile_create_features_delta_%d_%m_%Y_%H_%M_%S.log'))
+logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, )
+
+# for topic modeling clean text
+stop = set(stopwords.words('english'))
+exclude = set(string.punctuation)
+lemma = WordNetLemmatizer()
 
 
 class CreateFeatures:
@@ -40,12 +41,18 @@ class CreateFeatures:
     """
     def __init__(self):
         # Load all relevant data
-        self.units = pd.read_csv(os.path.join(data_directory, 'data_label_treatment.csv'))
+        self.units = pd.read_csv(os.path.join(data_directory, 'units.csv'))  # all the units, with label
         pd.to_numeric(self.units['submission_created_utc'])
         pd.to_numeric(self.units['comment_created_utc'])
-        self.all_data = pd.read_csv(os.path.join(data_directory, 'all_comments_submissions.csv'))
+        self.units['comment_id'] = self.units.comment_id.str.lstrip("b'")
+        self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_1")
+        self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_3")
+        self.all_data = pd.read_csv(os.path.join(data_directory, 'all_data.csv'))
         pd.to_numeric(self.all_data['comment_created_utc'])
         pd.to_numeric(self.all_data['submission_created_utc'])
+        self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_1")
+        self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_3")
+        self.all_data['comment_id'] = self.all_data.comment_id.str.lstrip("b'")
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -152,6 +159,115 @@ class CreateFeatures:
 
         return time_between.days
 
+    def loop_over_comment_for_quote(self, comment, comment_body):
+        """
+        Go over the comment and check if there is quote in each part
+        :param pandas series comment: a series with all the comment's information
+        :param str comment_body: the comment's body
+        :return: 0 if there is no quote in this part of comment, 1 if there is, -1 if we don't want this unit
+        """
+        is_quote = 0
+        if '>' in comment_body:  # this is the sign for a quote (|) in the comment
+            while '>' in comment_body and not is_quote:
+                quote_index = comment_body.find('>')
+                comment_body = comment_body[quote_index + 1:]
+                is_quote = self.check_quote(comment, comment_body)
+        else:  # there is not quote at all
+            is_quote = 0
+
+        return is_quote
+
+    def check_quote(self, comment, comment_body):
+        """
+        Check if there is a quote in the comment.
+        Check if it is a quote of a comment of the submitter or the submission itself
+        :param pandas series comment: a series with all the comment's information
+        :param str comment_body: the comment's body
+        :return: 0 if there is no quote in this part of comment, 1 if there is, -1 if we don't want this unit
+        """
+        comment_id = comment['comment_id']
+        no_parent = False
+        quote = copy(comment_body)
+        nn_index = quote.find('\\n')
+        n_index = quote.find('\n')
+        if nn_index == -1:  # there is no \\n
+            quote = quote
+        elif n_index != -1:  # there is \n
+            quote = quote[: n_index - 1]
+        else:
+            quote = quote[: nn_index - 1]  # take the quote: after the > and until the first \n
+        # parse the parent id
+        parent_id = comment['parent_id']
+        if 't1_' in parent_id:
+            parent_id = parent_id.lstrip('b').strip("'").lstrip('t1_')
+        elif 't3_' in parent_id:
+            parent_id = parent_id.lstrip('b').strip("'").lstrip('t3_')
+        else:
+            print('not t_ in parent_id for comment_id: {}'.format(comment_id))
+            logging.info('not t_ in parent_id for comment_id: {}'.format(comment_id))
+
+        # if the parent is the submission - take the submission body
+        if parent_id == comment['submission_id']:
+            parent_body = comment['submission_body']
+            parent_author = comment['submission_author']
+        else:  # if not - get the parent
+            parent_id = "b'" + parent_id + "'"
+            parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
+            if parent.empty:  # if we don't have the parent as comment in the data
+                print('no parent comment for comment_id: {}'.format(comment_id))
+                logging.info('no parent comment for comment_id: {}'.format(comment_id))
+                parent_body = ''
+                parent_author = ''
+                no_parent = True
+            else:
+                parent = pd.Series(parent.iloc[0])
+                parent_body = parent['comment_body']
+                parent_author = parent['comment_author']
+        submission_author = comment['submission_author']
+        submission_body = comment['submission_body']
+        submission_title = comment['submission_title']
+
+        if submission_author == parent_author:  # check if the parent author is the submitter
+            # if he quote the submission or the parent
+            if (quote in parent_body) or (quote in submission_body) or (quote in submission_title):
+                # self.units.loc[index, 'treated'] = 1
+                return 1
+            else:  # he didn't quote the submitter
+                # self.units.loc[index, 'treated'] = 0
+                return 0
+        else:  # if the parent author is not the submitter
+            if (quote in submission_body) or (quote in submission_title):  # we only care of he quote the submission:
+                # self.units.loc[index, 'treated'] = 1
+                print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                return 1
+            else:
+                if no_parent:
+                    # if there is no parent and he didn't quote the submission, we can't know if he quote the parent
+                    # - so maybe we don't need to use it
+                    # self.units.loc[index, 'treated'] = -1
+                    return -1
+                else:
+                    # self.units.loc[index, 'treated'] = 0
+                    return 0
+
+    def topic_model(self):
+        doc_clean = [clean(doc['comment_body']).split() for index, doc in self.units.iterrows()]
+        # Creating the term dictionary of our courpus, where every unique term is assigned an index.
+        dictionary = corpora.Dictionary(doc_clean)
+
+        # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
+        doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
+
+        # Creating the object for LDA model using gensim library
+        Lda = gensim.models.ldamodel.LdaModel
+        # model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
+        model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
+        model = model.fit(doc_term_matrix)
+        # Running and Trainign LDA model on the document term matrix.
+        result = model.transform(doc_term_matrix)
+        print(result)
+
 
 def sentiment_analysis(text):
     data = urllib.parse.urlencode({"text": text})
@@ -188,6 +304,15 @@ def percent_of_adj(text):
     return percent_of_adj_pos
 
 
+def clean(doc):
+    text = doc.lstrip('b').strip('"').strip("'").strip(">")
+    stop_free = " ".join([i for i in text.lower().split() if i not in stop])
+    punc_free = "".join(ch for ch in stop_free if ch not in exclude)
+    # stemming = " ".join(ps.stem(word) for word in punc_free.split())
+    normalized = " ".join(lemma.lemmatize(word) for word in punc_free.split())
+    return normalized
+
+
 def main():
     print('{}: Loading the data'.format((time.asctime(time.localtime(time.time())))))
     create_features = CreateFeatures()
@@ -196,12 +321,13 @@ def main():
                                                             create_features.units.shape))
 
     # Features calculated for all the data frame:
+    create_features.units['comment_len'] = create_features.units['comment_body'].str.len()
     create_features.units['submission_len'] = create_features.units['submission_body'].str.len()
     create_features.units['title_len'] = create_features.units['submission_title'].str.len()
-    create_features.units['hour_minuter_between_messages'] =\
-        math.floor(create_features.units['time_between']/3600.0) +\
-        math.floor((create_features.units['time_between'] -
-                    3600 * math.floor(create_features.units['time_between']/3600.0))/60.0)/100.0
+    # create_features.units['hour_minutes_between_messages'] =\
+    #     np.floor(create_features.units[['time_between']].div(3600.0, axis=0)) +\
+    #     np.floor((create_features.units['time_between'] -
+    #               3600 * np.floor(create_features.units[['time_between']].div(3600.0, axis=0)))/60.0)/100.0
 
     create_features.units.assign(commenter_number_submission='', commenter_number_comment='',
                                  submitter_number_submission='', submitter_number_comment='', time_ratio='',
@@ -212,20 +338,29 @@ def main():
                                  submitter_seniority_days='', commenter_seniority_days='', nltk_com_sen_pos='',
                                  nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
                                  nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
-                                 nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
+                                 nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='',
+                                 treated='')
 
     all_comments_features = pd.DataFrame()
+    new_index = 0
     for index, comment in create_features.units.iterrows():
-        if index % 100 == 0:
+        if new_index % 100 == 0:
             print('{}: Finish calculate {} samples'.format((time.asctime(time.localtime(time.time()))), index))
-        comment_author = comment['comment_author']
-        comment_body = comment['comment_body']
-        comment_time = comment['comment_created_utc']
-        submission_time = comment['submission_created_utc']
-        submission_id = comment['submission_id']
-        submission_num_comments = comment['submission_num_comments']
-        submission_body = comment['submission_body']
-        title = comment['submission_title']
+        comment_author = copy(comment['comment_author'])
+        comment_body = copy(comment['comment_body'])
+        comment_time = copy(comment['comment_created_utc'])
+        submission_time = copy(comment['submission_created_utc'])
+        submission_id = copy(comment['submission_id'])
+        submission_num_comments = copy(comment['submission_num_comments'])
+        submission_body = copy(comment['submission_body'])
+        title = copy(comment['submission_title'])
+
+        # treatment
+        is_quote = create_features.loop_over_comment_for_quote(comment, comment_body)
+        if is_quote == -1:
+            continue
+        else:
+            comment['treated'] = is_quote
 
         # Get comment author features:
         comment['commenter_number_submission'] =\
@@ -245,10 +380,10 @@ def main():
             create_features.comment_in_tree(comment_author, comment_time, submission_id)
 
         # Get the time between the submission and the comment time and the ration between the first comment:
-        # time_to_comment = comment['time_between']
-        # time_between_messages_hour = math.floor(time_to_comment/3600.0)
-        # time_between_messages_min = math.floor((time_to_comment - 3600*time_between_messages_hour)/60.0)/100.0
-        # comment['time_between_messages'] = time_between_messages_hour + time_between_messages_min
+        time_to_comment = comment['time_between']
+        time_between_messages_hour = math.floor(time_to_comment/3600.0)
+        time_between_messages_min = math.floor((time_to_comment - 3600*time_between_messages_hour)/60.0)/100.0
+        comment['time_between_messages'] = time_between_messages_hour + time_between_messages_min
         time_until_first_comment = create_features.time_to_first_comment(submission_id, submission_time)
         comment['time_ratio'] = comment_time - time_until_first_comment
         _, comment['number_of_comments_in_tree_from_submitter'] =\
@@ -260,12 +395,19 @@ def main():
             = number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
         # Ratio of comments number:
-        comment['respond_to_comment_user_all_ratio'] = number_of_respond_by_submitter / submission_num_comments
-        comment['respond_to_comment_user_responses_ratio'] =\
-            number_of_respond_by_submitter / number_of_respond_by_submitter_total
-        comment['respond_total_ratio'] = number_of_respond_by_submitter_total / submission_num_comments
+        if submission_num_comments == 0:
+            comment['respond_to_comment_user_all_ratio'] = 0
+            comment['respond_total_ratio'] = 0
+        else:
+            comment['respond_to_comment_user_all_ratio'] = number_of_respond_by_submitter / submission_num_comments
+            comment['respond_total_ratio'] = number_of_respond_by_submitter_total / submission_num_comments
+        if number_of_respond_by_submitter_total == 0:
+            comment['respond_to_comment_user_responses_ratio'] = 0
+        else:
+            comment['respond_to_comment_user_responses_ratio'] =\
+                number_of_respond_by_submitter / number_of_respond_by_submitter_total
 
-        # Sentiment analysis: Reut:
+        # Sentiment analysis:
         # for the comment:
         comment_sentiment_list = sentiment_analysis(comment_body)
         comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
@@ -275,34 +417,21 @@ def main():
         comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
             sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
         # for the title
-        title_sentiment_list = sentiment_analysis(submission_body)
+        title_sentiment_list = sentiment_analysis(title)
         comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
             title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
         # cosine similarity between submission's sentiment vector and comment sentiment vector:
         sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
         sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
-        comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)
+        comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)[0][0]
 
         # percent of adjective in the comment:
         comment['percent_adj'] = percent_of_adj(comment_body)
 
-        # features = [comment_author_number_submission, comment_author_number_comment, sub_author_number_submission,
-        #             sub_author_number_comment, time_between_messages, time_ratio, is_first_comment_in_tree,
-        #             number_of_comments_in_tree_by_comment_user, number_of_comments_in_tree_from_submitter,
-        #             number_of_respond_by_submitter, number_of_respond_by_submitter_total,
-        #             respond_to_comment_user_all_ratio, respond_to_comment_user_responses_ratio, respond_total_ratio]
-        #
-        # labels = ('comment_author_number_submission', 'comment_author_number_comment', 'sub_author_number_submission',
-        #           'sub_author_number_comment', 'time_between_messages', 'time_ratio', 'is_first_comment_in_tree',
-        #           'number_of_comments_in_tree_by_comment_user', 'number_of_comments_in_tree_from_submitter',
-        #           'number_of_respond_by_submitter', 'number_of_respond_by_submitter_total',
-        #           'respond_to_comment_user_all_ratio', 'respond_to_comment_user_responses_ratio', 'respond_total_ratio')
-        #
-        # featuresDF = pd.Series(features, index=labels)
-        #
-        # comment_features = comment.append(featuresDF)
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
         all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+
+        new_index += 1
 
     # export the data to csv file
     all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
@@ -310,4 +439,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

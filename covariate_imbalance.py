@@ -15,7 +15,7 @@ from copy import copy
 from collections import defaultdict
 
 base_directory = os.path.abspath(os.curdir)
-features_directory = os.path.join(base_directory, 'features_results')
+features_directory = os.path.join(base_directory, 'change my view')
 imbalance_directory = os.path.join(base_directory, 'imbalance_results')
 
 
@@ -47,7 +47,7 @@ class Imbalance:
         self.total_imbalance_unmatched = dict()
         self.total_imbalance_matched = dict()
         self.results = defaultdict(dict)
-        # self.treatments_list = treatments_list
+        self.treatments_list = treatments_list
         self.variable_names = variable_names
         for treat in self.treatments_list:
             self.treatment[treat] = data.loc[data[treatment_column] == treat]
@@ -125,23 +125,24 @@ class Imbalance:
 
             # create total for treat 1
             results_df = pd.DataFrame.from_dict(self.results[treat], orient='index')
-            results_df.to_csv(os.path.join(imbalance_directory, 'treat_' + treat + '_results.csv'))
+            results_df.to_csv(os.path.join(imbalance_directory, 'CMV_treat_' + treat + '_results.csv'))
 
         return
 
 
 if __name__ == '__main__':
-    features_data = pd.read_excel(os.path.join(features_directory, 'Features_causality_final.xlsx'))
-    treatments = ['positive', 'negative']
+    features_data = pd.read_csv(os.path.join(features_directory, 'features_CMV.csv'))
+    treatments = [1]
     treatment_column_name = 'treated'
     matched_column_name = 'matched'
-    variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',
-                     'percent_efficient_references_comment_author', 'number_of_references_comment_author',
-                     'number_of_efficient_references_comment_author', 'submission_author_number_original_subreddit',
-                     'number_of_inefficient_references_comment_author', 'subreddits_similarity',
-                     'submission_author_number_recommend_subreddit', 'cosine_similarity_subreddits_list',
-                     'comment_created_time_hour', 'submission_created_time_hour', 'time_between_messages',
-                     'comment_len', 'number_of_r', 'comment_submission_similarity', 'comment_title_similarity',
-                     'number_of_references_to_submission', 'number_of_references_to_recommended_subreddit']
+    variable_name = ['commenter_number_submission', 'submitter_number_submission', 'is_first_comment_in_tree',
+                     'number_of_comments_in_tree_from_submitter', 'number_of_respond_by_submitter_total',
+                     'respond_to_comment_user_responses_ratio', 'submitter_seniority_days', 'nltk_com_sen_neg',
+                     'nltk_sub_sen_neg', 'nltk_title_sen_neg', 'commenter_number_comment', 'submitter_number_comment',
+                     'number_of_comments_in_tree_by_comment_user', 'number_of_respond_by_submitter',
+                     'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'commenter_seniority_days',
+                     'nltk_com_sen_neutral', 'nltk_sub_sen_neutral', 'nltk_title_sen_neutral', 'topic_model'
+                     'time_ratio', 'nltk_com_sen_pos', 'nltk_sub_sen_pos', 'nltk_title_sen_pos', 'comment_len'
+                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'hour_minutes_between_messages']
     imbalnce_obj = Imbalance(features_data, treatment_column_name, matched_column_name, variable_name, treatments)
     imbalnce_obj.imbalance()

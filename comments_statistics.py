@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 base_directory = os.path.abspath(os.curdir)
-change_my_view_directory = os.path.join(base_directory, 'importing_change_my_view')
+change_my_view_directory = os.path.join(base_directory, 'change my view')
 comments = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions comments with label.csv'))
 submissions = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions.csv'))
 

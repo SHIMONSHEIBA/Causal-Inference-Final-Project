@@ -24,7 +24,7 @@ class Sim:
             text["submission_body"] = text["submission_body"].partition(
                 "Hello, users of CMV! This is a footnote from your moderators")[0]
             text["submission_title_and_body"] = text["submission_title"] + text["submission_body"]
-            #TODO: CHECK IF .CAT SHOULD BE ON COLUMN submission_title_and_body
+            # TODO: CHECK IF .CAT SHOULD BE ON COLUMN submission_title_and_body
             text_cat = text.str.cat(sep=' ')
             return text_cat
 
@@ -123,13 +123,13 @@ def main():
 
     # config path and load data
     base_directory = os.path.abspath(os.curdir)
-    results_directory = os.path.join(base_directory, 'importing_change_my_view')
+    results_directory = os.path.join(base_directory, 'change my view')
 
     debug_mode = False
     if debug_mode:
         # original data
-        comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label_small.csv'))
-        submissions = pd.read_csv(os.path.join(results_directory, 'all submissions_small.csv'))
+        comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label.csv'))
+        submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
         # prepare data and join
         comments['submission_id'] = comments.submission_id.str.slice(2, -1)
         submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")
