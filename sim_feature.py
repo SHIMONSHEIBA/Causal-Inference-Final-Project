@@ -13,24 +13,46 @@ class Sim:
         self.data = data
         self.units = units
         self.all_submissions = all_submissions
+
+        self.data_preprocess()
+        return
+
+    def data_preprocess(self):
+
+        print("{} :begin data pre process".format(time.asctime(time.localtime(time.time()))))
+
+        # remove unicode char from relevant data columns
+        self.all_submissions["submission_title"] = \
+            self.all_submissions["submission_title"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+        self.all_submissions["submission_body"] = \
+            self.all_submissions["submission_body"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+        self.all_submissions["submission_body"] = self.all_submissions["submission_body"].partition(
+            "Hello, users of CMV! This is a footnote from your moderators")[0]
+        self.data["comment_body"] = \
+            self.data["comment_body"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+
+        # concat submissions text
+        self.all_submissions["submission_title_and_body"] = self.all_submissions["submission_title"] \
+                                                            + self.all_submissions["submission_body"]
+
+        print("{} :finish data pre process".format(time.asctime(time.localtime(time.time()))))
         return
 
     def concat_df_rows(self, comment_created_utc, author, is_submission=False):
         if is_submission:
             text = self.all_submissions.loc[(self.all_submissions['submission_created_utc'] <= comment_created_utc) &
-                                   (self.all_submissions['submission_author'] == author)].iloc[0][["submission_title",
-                                                                                       "submission_body"]]
-            text = text.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
-            text["submission_body"] = text["submission_body"].partition(
-                "Hello, users of CMV! This is a footnote from your moderators")[0]
-            text["submission_title_and_body"] = text["submission_title"] + text["submission_body"]
+                                   (self.all_submissions['submission_author'] == author)]["submission_title_and_body"]
+            # text = text.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+            # text["submission_body"] = text["submission_body"].partition(
+            #     "Hello, users of CMV! This is a footnote from your moderators")[0]
+            # text["submission_title_and_body"] = text["submission_title"] + text["submission_body"]
             #TODO: CHECK IF .CAT SHOULD BE ON COLUMN submission_title_and_body
             text_cat = text.str.cat(sep=' ')
             return text_cat
 
         text = self.data.loc[(self.data['comment_created_utc'] <= comment_created_utc) &
                                (self.data['comment_author'] == author)]["comment_body"]
-        text = text.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+        # text = text.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
         text_cat = text.str.cat(sep=' ')
 
         return text_cat
@@ -39,24 +61,23 @@ class Sim:
 
         # get all comments for vocab
         vocab_c = self.data.loc[self.data['comment_created_utc'] <= comment_created_utc]["comment_body"]
-        vocab_c = vocab_c.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+        #vocab_c = vocab_c.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
         #vocab_c_cat = vocab_c.str.cat(sep=' ')
 
         # get all submissions title & body for vocab
         vocab_s = self.all_submissions.loc[self.all_submissions['submission_created_utc'] <=
-                                           comment_created_utc].iloc[0][["submission_title",
-                                                                               "submission_body","submission_id"]]
-        vocab_s = vocab_s.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
+                                           comment_created_utc]["submission_title_and_body"]
+        #vocab_s = vocab_s.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
 
         # # get unique values for submissions
         # vocab_s.drop_duplicates(subset="submission_id",inplace=True)
 
         # clean automated messages of Reddit
-        vocab_s["submission_body"] = vocab_s["submission_body"].partition(
-            "Hello, users of CMV! This is a footnote from your moderators")[0]
+        # vocab_s["submission_body"] = vocab_s["submission_body"].partition(
+        #     "Hello, users of CMV! This is a footnote from your moderators")[0]
 
         # concat unique submissions
-        vocab_s["submission_title_and_body"] = vocab_s["submission_title"] + vocab_s["submission_body"]
+        # vocab_s["submission_title_and_body"] = vocab_s["submission_title"] + vocab_s["submission_body"]
         #vocab_s_cat = vocab_s.str.cat(sep=' ')
 
         # join two strings of comments and submissions
@@ -74,12 +95,14 @@ class Sim:
             submission_author = row.loc['submission_author']
 
             # check if in units data we have rows which are supposed to be only in data for building features
-            if comment_author == submission_author:
-                print("commenter is submitter")
-                continue
+            # if comment_author == submission_author:
+            #     print("commenter is submitter")
+            #     continue
 
             # all text of commenter until comment time
             text_commenter = self.concat_df_rows(comment_created_utc, comment_author)
+            text_commenter_submission = self.concat_df_rows(comment_created_utc, comment_author, True)
+            text_commenter += text_commenter_submission
 
             # all text of submissioner until comment time
             text_submissioner = self.concat_df_rows(comment_created_utc, submission_author)
