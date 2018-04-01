@@ -3,11 +3,6 @@ This module contains a class to ensure that there is overlap between treatment a
 """
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import statsmodels as sm
-import statsmodels.api as sma
-import statsmodels.formula.api as smf
-import matplotlib.pyplot as plt
 import os
 
 
@@ -139,46 +134,14 @@ class Matching:
         print('treamed data size is: {}'.format(data[common_support].shape))
         return data[common_support]
 
-    def qq_plot(self, x, y, variable_name):
-        """ Produces a QQ-plot where the percentiles of two empirical distributions are compared against each other.
-
-        Arguments:
-        ----------
-            x:              Vector with samples from the first distribution.
-            y:              Vector with samples from the second distribution.
-            variable_name:  Name of the variable.
-
-        """
-        q = np.arange(0, 100)
-        a = np.percentile(a=x, q=q)
-        b = np.percentile(a=y, q=q)
-
-        fig, ax = plt.subplots(figsize=(8, 8))
-        plt.title("QQ-plot of variable %s" % variable_name)
-
-        plt.plot(a, b, 'o')
-        plt.plot([0, np.max(a)], [0, np.max(a)], '-')
-
-        ax.set_xlabel("Control quantiles")
-        ax.set_ylabel("Treatment quantiles")
-
 
 def main():
 
     matching = Matching()
-    treatments_list = [['positive','propensity_score_positive.xlsx','propensity_score_positive_logistic'],
-                       ['negative','propensity_score_negative.xlsx','propensity_score_negative_logistic']]
-    sub_directory = 'propensity_score_results'
+    treatments_list = [['treated','features_CMV.csv','propensity']]
+    sub_directory = 'importing_change_my_view'
     prepare_data = False
-    #column_name = 'propensity_score_' + treatment + '_' + method
-    variable_name = ['comment_author_number_original_subreddit', 'comment_author_number_recommend_subreddit',
-                     'percent_efficient_references_comment_author', 'number_of_references_comment_author',
-                     'number_of_efficient_references_comment_author', 'submission_author_number_original_subreddit',
-                     'number_of_inefficient_references_comment_author', 'subreddits_similarity',
-                     'submission_author_number_recommend_subreddit', 'cosine_similarity_subreddits_list',
-                     'comment_created_time_hour', 'submission_created_time_hour', 'time_between_messages',
-                     'comment_len', 'number_of_r', 'comment_submission_similarity', 'comment_title_similarity',
-                     'number_of_references_to_submission', 'number_of_references_to_recommended_subreddit']
+
     for treats in treatments_list:
         treatment_column = treats[0]
         data_name = treats[1]
@@ -210,11 +173,6 @@ def main():
         # save matched df
         print('matched data size for {} is {}'.format(treatment_column,matches_data_frame.shape))
         matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'.csv')
-
-        #print("distribution of pre-treatment covariates:")
-        # TODO: fix saving plot
-        # matches_data_frame.groupby(treatment_column)[propensity_column_name].plot(kind="hist", sharex=True, range=(0, 1),
-        #                                                                           bins=20, alpha=0.75)
 
 if __name__ == '__main__':
     main()
