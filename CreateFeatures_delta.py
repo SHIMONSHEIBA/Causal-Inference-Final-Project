@@ -45,14 +45,18 @@ class CreateFeatures:
         pd.to_numeric(self.units['submission_created_utc'])
         pd.to_numeric(self.units['comment_created_utc'])
         self.units['comment_id'] = self.units.comment_id.str.lstrip("b'")
+        self.units['comment_id'] = self.units.comment_id.str.rstrip("'")
         self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_1")
         self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_3")
+        self.units['parent_id'] = self.units.parent_id.str.rstrip("'")
         self.all_data = pd.read_csv(os.path.join(data_directory, 'all_data.csv'))
         pd.to_numeric(self.all_data['comment_created_utc'])
         pd.to_numeric(self.all_data['submission_created_utc'])
         self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_1")
         self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_3")
         self.all_data['comment_id'] = self.all_data.comment_id.str.lstrip("b'")
+        self.all_data['comment_id'] = self.all_data.comment_id.str.rstrip("'")
+        self.all_data['parent_id'] = self.all_data.parent_id.str.rstrip("'")
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -198,20 +202,20 @@ class CreateFeatures:
             quote = quote[: nn_index - 1]  # take the quote: after the > and until the first \n
         # parse the parent id
         parent_id = comment['parent_id']
-        if 't1_' in parent_id:
-            parent_id = parent_id.lstrip('b').strip("'").lstrip('t1_')
-        elif 't3_' in parent_id:
-            parent_id = parent_id.lstrip('b').strip("'").lstrip('t3_')
-        else:
-            print('not t_ in parent_id for comment_id: {}'.format(comment_id))
-            logging.info('not t_ in parent_id for comment_id: {}'.format(comment_id))
+        # if 't1_' in parent_id:
+        #     parent_id = parent_id.lstrip('b').strip("'").lstrip('t1_')
+        # elif 't3_' in parent_id:
+        #     parent_id = parent_id.lstrip('b').strip("'").lstrip('t3_')
+        # else:
+        #     print('not t_ in parent_id for comment_id: {}'.format(comment_id))
+        #     logging.info('not t_ in parent_id for comment_id: {}'.format(comment_id))
 
         # if the parent is the submission - take the submission body
         if parent_id == comment['submission_id']:
             parent_body = comment['submission_body']
             parent_author = comment['submission_author']
         else:  # if not - get the parent
-            parent_id = "b'" + parent_id + "'"
+            # parent_id = "b'" + parent_id + "'"
             parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
             if parent.empty:  # if we don't have the parent as comment in the data
                 print('no parent comment for comment_id: {}'.format(comment_id))
