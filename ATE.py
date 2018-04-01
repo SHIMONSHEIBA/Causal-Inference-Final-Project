@@ -22,8 +22,8 @@ class Ate:
 
     def estimate_ate(self, Y, X, treatment_column, model):
 
-        gold_treated = Y.loc[Y[treatment_column] == 1, "IsEfficient"]
-        gold_control = Y.loc[Y[treatment_column] == 0, "IsEfficient"]
+        gold_treated = Y.loc[Y[treatment_column] == 1, "delta"]
+        gold_control = Y.loc[Y[treatment_column] == 0, "delta"]
         num_of_treated = gold_treated.shape[0]
         num_of_control = gold_control.shape[0]
 
@@ -44,21 +44,20 @@ class Ate:
 def main():
 
     log_model = LogisticRegression()
-    treatments_list = [['positive','propensity_score_positive.xlsx','propensity_score_positive_logistic'],
-                       ['negative','propensity_score_negative.xlsx','propensity_score_negative_logistic']]
-    sub_directory = 'propensity_score_results'
+    treatments_list = [['treated','features_CMV.csv']]
+    sub_directory = 'importing_change_my_view'
     for treats in treatments_list:
         treatment_column = treats[0]
         data_name = treats[1]
-        propensity_column_name = treats[2]
+        #propensity_column_name = treats[2]
         data_path = os.path.join(sub_directory, data_name)
-        data = pd.read_excel(data_path)
-        X = data.drop(['IsEfficient'], axis=1)
-        Y = data[['IsEfficient',treatment_column]]
-        log_model.fit(X=X,y=Y['IsEfficient'])
+        data = pd.read_csv(data_path)
+        X = data.drop(['delta'], axis=1)
+        Y = data[['delta',treatment_column]]
+        log_model.fit(X=X,y=Y['delta'])
         ate = Ate(data)
         covariate_adjustment = ate.estimate_ate( Y, X, treatment_column, log_model)
-        print("covariate_adjustment ATE estimate for {} sentiment is: {}".format(treatment_column, covariate_adjustment))
+        print("covariate_adjustment ATE estimate for {} treatment is: {}".format(treatment_column, covariate_adjustment))
     return
 
 

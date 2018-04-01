@@ -26,7 +26,7 @@ class Sim:
             self.all_submissions["submission_title"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
         self.all_submissions["submission_body"] = \
             self.all_submissions["submission_body"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
-        self.all_submissions["submission_body"] = self.all_submissions["submission_body"].partition(
+        self.all_submissions["submission_body"] = self.all_submissions["submission_body"].str.partition(
             "Hello, users of CMV! This is a footnote from your moderators")[0]
         self.data["comment_body"] = \
             self.data["comment_body"].apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
@@ -57,16 +57,18 @@ class Sim:
 
         return text_cat
 
-    def create_vocab(self, comment_created_utc):
+    def create_vocab(self): #, comment_created_utc):
 
         # get all comments for vocab
-        vocab_c = self.data.loc[self.data['comment_created_utc'] <= comment_created_utc]["comment_body"]
+        #vocab_c = self.data.loc[self.data['comment_created_utc'] <= comment_created_utc]["comment_body"]
+        vocab_c = self.data["comment_body"]
         #vocab_c = vocab_c.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
         #vocab_c_cat = vocab_c.str.cat(sep=' ')
 
         # get all submissions title & body for vocab
-        vocab_s = self.all_submissions.loc[self.all_submissions['submission_created_utc'] <=
-                                           comment_created_utc]["submission_title_and_body"]
+        # vocab_s = self.all_submissions.loc[self.all_submissions['submission_created_utc'] <=
+        #                                    comment_created_utc]["submission_title_and_body"]
+        vocab_s = self.all_submissions["submission_title_and_body"]
         #vocab_s = vocab_s.apply(lambda x: x.lstrip('b').strip('"').strip("'").strip(">"))
 
         # # get unique values for submissions
@@ -86,6 +88,13 @@ class Sim:
         return vocab_df
 
     def calc_tf_idf_cos(self):
+
+        # create vocabulary for idf calq
+        vocab = self.create_vocab()
+        print("{} :begin fitting tfidf".format(time.asctime(time.localtime(time.time()))))
+        tfidf_vec_fitted = TfidfVectorizer(stop_words='english', lowercase=True, analyzer='word', norm='l2',
+                                           smooth_idf=True, sublinear_tf=False, use_idf=True).fit(vocab)
+        print("{} :finish fitting tfidf".format(time.asctime(time.localtime(time.time()))))
 
         print("starting tf idf similarity for units")
         for index, row in self.units.iterrows():
@@ -109,21 +118,23 @@ class Sim:
             text_submissioner_submission = self.concat_df_rows(comment_created_utc, submission_author, True)
             text_submissioner += text_submissioner_submission
 
-            # create vocabulary for idf calculation, until comment time
-            vocab_until_comment_utc = self.create_vocab(comment_created_utc)
+            # # create vocabulary for idf calculation, until comment time
+            # vocab_until_comment_utc = self.create_vocab(comment_created_utc)
 
             text = [text_submissioner, text_commenter]
             # define tfidf object , fit by vocab & transform by data of commenter/submissioner
-            tfidf_vec_fitted = TfidfVectorizer(stop_words='english', lowercase=True, analyzer='word', norm='l2',
-                                    smooth_idf=True, sublinear_tf=False, use_idf=True).fit(vocab_until_comment_utc)
+
+            #print("{} :begin transform tfidf".format(time.asctime(time.localtime(time.time()))))
             tfidf_vec_transformed = tfidf_vec_fitted.transform(text)
+            #print("{} :finish transform tfidf".format(time.asctime(time.localtime(time.time()))))
 
             # tfidf = TfidfVectorizer(stop_words='english', lowercase=True, analyzer='word', norm='l2',
             #                         smooth_idf=True, sublinear_tf=False, use_idf=True).fit_transform(text)
             #similarity = cosine_similarity(tfidf[0:], tfidf[1:])
 
+            #print("{} :begin cosine tfidf".format(time.asctime(time.localtime(time.time()))))
             similarity = cosine_similarity(tfidf_vec_transformed[0:], tfidf_vec_transformed[1:])
-
+            #print("{} :finish cosine tfidf".format(time.asctime(time.localtime(time.time()))))
             self.units.loc[index, "submmiter_commenter_tfidf_cos_sim"] = \
                 similarity[0][0]
 
@@ -134,8 +145,8 @@ class Sim:
             #     print("text commenter:")
             #     print(text_commenter)
 
-            # if index % 100 == 0:
-            print("{} finished similarity for unit no {}".format(time.asctime(time.localtime(time.time())), index))
+            if index % 100 == 0:
+                print("{} finished similarity for unit no {}".format(time.asctime(time.localtime(time.time())), index))
 
         # save results with new feature
         comment_sim_df = self.units[["comment_id","submmiter_commenter_tfidf_cos_sim"]]
