@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import time
 
 
 class Sim:
@@ -103,18 +104,19 @@ class Sim:
             self.units.loc[index, "submmiter_commenter_tfidf_cos_sim"] = \
                 similarity[0][0]
 
-            # if similarity[0][0] > 0.9 or similarity[0][0] < 0.2:
-            print(similarity[0][0])
-            print("text submissioner:")
-            print(text_submissioner)
-            print("text commenter:")
-            print(text_commenter)
+            # if similarity[0][0] > 0.9 or similarity[0][0] < 0.05:
+            #     print(similarity[0][0])
+            #     print("text submissioner:")
+            #     print(text_submissioner)
+            #     print("text commenter:")
+            #     print(text_commenter)
 
-            if index % 100 == 0:
-                print("finished similarity for unit no {}".format(index))
+            # if index % 100 == 0:
+            print("{} finished similarity for unit no {}".format(time.asctime(time.localtime(time.time())), index))
 
         # save results with new feature
-        self.units.to_csv("units_with_sim_tfidf_cos.csv")
+        comment_sim_df = self.units[["comment_id","submmiter_commenter_tfidf_cos_sim"]]
+        comment_sim_df.to_csv("units_with_sim_tfidf_cos.csv")
 
 
 def main():
@@ -123,7 +125,7 @@ def main():
     base_directory = os.path.abspath(os.curdir)
     results_directory = os.path.join(base_directory, 'importing_change_my_view')
 
-    debug_mode = True
+    debug_mode = False
     if debug_mode:
         # original data
         comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments with label_small.csv'))
@@ -135,7 +137,7 @@ def main():
         data = join_result
         units = join_result
     else:
-        data = pd.read_csv(os.path.join(results_directory, 'data.csv'))
+        data = pd.read_csv(os.path.join(results_directory, 'all_data.csv'))
         units = pd.read_csv(os.path.join(results_directory, 'units.csv'))
         submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
         submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")

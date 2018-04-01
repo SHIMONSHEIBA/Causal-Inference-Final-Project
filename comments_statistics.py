@@ -2,9 +2,9 @@ import pandas as pd
 import os
 
 base_directory = os.path.abspath(os.curdir)
-change_my_view_directory = os.path.join(base_directory, 'change my view')
+change_my_view_directory = os.path.join(base_directory, 'importing_change_my_view')
 comments = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions comments with label.csv'))
-submissions = pd.read_excel(os.path.join(change_my_view_directory, 'all submissions.xlsx'))
+submissions = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions.csv'))
 
 comments['submission_id'] = comments.submission_id.str.slice(2, -1)
 submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")
