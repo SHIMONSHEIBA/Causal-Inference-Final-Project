@@ -11,9 +11,10 @@ from nltk.corpus import sentiwordnet as swn
 from nltk.corpus import wordnet as wn
 from collections import defaultdict
 import nltk as nk
-nk.download('punkt')
 import os
 import pickle
+nk.download('punkt')
+
 
 class Sentiment:
 
@@ -25,7 +26,6 @@ class Sentiment:
         self.data = pd.DataFrame()
         self.senti_dict = defaultdict(dict)
         self.load_data()
-
 
     def load_data(self):
 
@@ -137,7 +137,7 @@ class Sentiment:
             threshes = thresh
 
         labeled_df_name = 'labeled_data_thresh_{}_word_num_{}'.format(str(chosen_thresh),str(word_num))
-        labeled_data_df = pd.DataFrame(columns=['key', 'comment','treated'])
+        labeled_data_df = pd.DataFrame(columns=['key', 'comment', 'treated'])
         general_data_df = pd.DataFrame(columns=['key', 'comment', 'treated'])
 
         label = str()

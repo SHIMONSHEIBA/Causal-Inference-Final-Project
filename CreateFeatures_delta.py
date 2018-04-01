@@ -1,20 +1,17 @@
 import pandas as pd
-import numpy as np
 from time import time
 import time
-import itertools
 import math
-from collections import Counter
-from time import strftime, localtime
 from datetime import datetime
 import pytz
-from sklearn.feature_extraction.text import TfidfVectorizer
-import csv
 from optparse import OptionParser
 import sys
-from sklearn.metrics.pairwise import cosine_similarity
-import pickle
 import os
+import urllib.parse
+import urllib.request
+import nltk as nk
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 op = OptionParser()
@@ -44,11 +41,11 @@ class CreateFeatures:
     def __init__(self):
         # Load all relevant data
         self.units = pd.read_csv(os.path.join(data_directory, 'data_label_treatment.csv'))
-        pd.to_numeric(self.units['submission_created_time'])
-        pd.to_numeric(self.units['comment_created_time'])
+        pd.to_numeric(self.units['submission_created_utc'])
+        pd.to_numeric(self.units['comment_created_utc'])
         self.all_data = pd.read_csv(os.path.join(data_directory, 'all_comments_submissions.csv'))
-        pd.to_numeric(self.all_data['comment_created_time'])
-        pd.to_numeric(self.all_data['submission_created_time'])
+        pd.to_numeric(self.all_data['comment_created_utc'])
+        pd.to_numeric(self.all_data['submission_created_utc'])
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -126,6 +123,7 @@ class CreateFeatures:
         """
         Calculate the time between the submission and the first comment
         :param int submission_id: the submission id
+        :param int submission_created_time: the utc time of the submission
         :return: int the seconds between the submission and the first comment in its tree
         """
 
@@ -134,6 +132,60 @@ class CreateFeatures:
         time_until_first_comment = time_of_first_comment - submission_created_time
 
         return time_until_first_comment
+
+    def calculate_user_seniority(self, user):
+        """
+        Calculate the user seniority in change my view subreddit in days
+        :param str user: the user name
+        :return: int the number of days since the first post of the user (submissions and comments)
+        """
+        user_all_comments = self.all_data.loc[self.all_data['comment_author'] == user]
+        user_all_submissions = self.all_data.loc[self.all_data['submission_author'] == user]
+        first_comment_time = user_all_comments.comment_created_utc.min()
+        first_submission_time = user_all_submissions.submission_created_utc.min()
+        first_post_time = min(first_comment_time, first_submission_time)
+        tz = pytz.timezone('GMT')  # America/New_York
+        date_comment = datetime.fromtimestamp(first_post_time, tz)
+        utc_now = int(time.time())
+        date_now = datetime.fromtimestamp(utc_now, tz)
+        time_between = date_now - date_comment
+
+        return time_between.days
+
+
+def sentiment_analysis(text):
+    data = urllib.parse.urlencode({"text": text})
+    data = data.replace("\n", "")
+    data = data.lower()
+    data = data.encode('ascii')
+    with urllib.request.urlopen("http://text-processing.com/api/sentiment/", data) as f:
+        result = f.read().decode('utf-8')
+        index_of_neg = result.find('neg')
+        index_of_neutral = result.find('neutral')
+        index_of_pos = result.find('pos')
+        index_of_label = result.find('label')
+        neg_prob = float(result[index_of_neg + 6:index_of_neutral - 3])
+        neutral_prob = float(result[index_of_neutral + 10:index_of_pos - 3])
+        pos_prob = float(result[index_of_pos + 6:index_of_label - 4])
+        return [pos_prob, neg_prob, neutral_prob]
+
+
+def get_POS(text):
+    text_parsed = nk.word_tokenize(text)
+    words_pos = nk.pos_tag(text_parsed)
+
+    return words_pos
+
+
+def percent_of_adj(text):
+    pos_text = get_POS(text)
+    pos_df = pd.DataFrame(pos_text, columns=['word', 'POS'])
+    number_all_pos = pos_df.shape[0]
+    all_pos = pos_df['POS']
+    freq = nk.FreqDist(all_pos)
+    number_adj_pos = freq['JJ'] + freq['JJS'] + freq['JJR']
+    percent_of_adj_pos = number_all_pos/number_adj_pos
+    return percent_of_adj_pos
 
 
 def main():
@@ -146,65 +198,110 @@ def main():
     # Features calculated for all the data frame:
     create_features.units['submission_len'] = create_features.units['submission_body'].str.len()
     create_features.units['title_len'] = create_features.units['submission_title'].str.len()
+    create_features.units['hour_minuter_between_messages'] =\
+        math.floor(create_features.units['time_between']/3600.0) +\
+        math.floor((create_features.units['time_between'] -
+                    3600 * math.floor(create_features.units['time_between']/3600.0))/60.0)/100.0
+
+    create_features.units.assign(commenter_number_submission='', commenter_number_comment='',
+                                 submitter_number_submission='', submitter_number_comment='', time_ratio='',
+                                 is_first_comment_in_tree='', number_of_comments_in_tree_by_comment_user='',
+                                 number_of_comments_in_tree_from_submitter='', number_of_respond_by_submitter='',
+                                 number_of_respond_by_submitter_total='', respond_to_comment_user_all_ratio='',
+                                 respond_to_comment_user_responses_ratio='', respond_total_ratio='',
+                                 submitter_seniority_days='', commenter_seniority_days='', nltk_com_sen_pos='',
+                                 nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
+                                 nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
+                                 nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
 
     all_comments_features = pd.DataFrame()
     for index, comment in create_features.units.iterrows():
         if index % 100 == 0:
             print('{}: Finish calculate {} samples'.format((time.asctime(time.localtime(time.time()))), index))
         comment_author = comment['comment_author']
+        comment_body = comment['comment_body']
         comment_time = comment['comment_created_utc']
         submission_time = comment['submission_created_utc']
         submission_id = comment['submission_id']
         submission_num_comments = comment['submission_num_comments']
+        submission_body = comment['submission_body']
+        title = comment['submission_title']
 
         # Get comment author features:
-        comment_author_number_submission = create_features.number_of_message(comment_author, comment_time, 'submission')
-        comment_author_number_comment = create_features.number_of_message(comment_author, comment_time, 'comment')
+        comment['commenter_number_submission'] =\
+            create_features.number_of_message(comment_author, comment_time, 'submission')
+        comment['commenter_number_comment'] =\
+            create_features.number_of_message(comment_author, comment_time, 'comment')
+        comment['commenter_seniority_days'] = create_features.calculate_user_seniority(comment_author)
 
         # Get submission author features:
         submission_author = comment['submission_author']
-        sub_author_number_submission = create_features.number_of_message(submission_author, comment_time, 'submission')
-        sub_author_number_comment = create_features.number_of_message(submission_author, comment_time, 'comment')
+        comment['submitter_number_submission']\
+            = create_features.number_of_message(submission_author, comment_time, 'submission')
+        comment['submitter_number_comment']\
+            = create_features.number_of_message(submission_author, comment_time, 'comment')
+        comment['submitter_seniority_days'] = create_features.calculate_user_seniority(submission_author)
+        comment['is_first_comment_in_tree'], comment['number_of_comments_in_tree_by_comment_user'] = \
+            create_features.comment_in_tree(comment_author, comment_time, submission_id)
 
         # Get the time between the submission and the comment time and the ration between the first comment:
-        time_to_comment = comment['time_between']
-        time_between_messages_hour = math.floor(time_to_comment/3600.0)
-        time_between_messages_min = math.floor((time_to_comment - 3600*time_between_messages_hour)/60.0)/100.0
-        time_between_messages = time_between_messages_hour + time_between_messages_min
+        # time_to_comment = comment['time_between']
+        # time_between_messages_hour = math.floor(time_to_comment/3600.0)
+        # time_between_messages_min = math.floor((time_to_comment - 3600*time_between_messages_hour)/60.0)/100.0
+        # comment['time_between_messages'] = time_between_messages_hour + time_between_messages_min
         time_until_first_comment = create_features.time_to_first_comment(submission_id, submission_time)
-        time_ratio = comment_time - time_until_first_comment
-
-        # Comment features:
-        is_first_comment_in_tree, number_of_comments_in_tree_by_comment_user =\
-            create_features.comment_in_tree(comment_author, comment_time, submission_id)
-        _, number_of_comments_in_tree_from_submitter =\
+        comment['time_ratio'] = comment_time - time_until_first_comment
+        _, comment['number_of_comments_in_tree_from_submitter'] =\
             create_features.comment_in_tree(submission_author, comment_time, submission_id)
         number_of_respond_by_submitter, number_of_respond_by_submitter_total =\
             create_features.submitter_respond_to_comment_user(comment_author, submission_author,
                                                               comment_time, submission_id)
+        comment['number_of_respond_by_submitter'], comment['number_of_respond_by_submitter_total'] \
+            = number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
         # Ratio of comments number:
-        respond_to_comment_user_all_ratio = number_of_respond_by_submitter / submission_num_comments
-        respond_to_comment_user_responses_ratio =\
+        comment['respond_to_comment_user_all_ratio'] = number_of_respond_by_submitter / submission_num_comments
+        comment['respond_to_comment_user_responses_ratio'] =\
             number_of_respond_by_submitter / number_of_respond_by_submitter_total
-        respond_total_ratio = number_of_respond_by_submitter_total / submission_num_comments
+        comment['respond_total_ratio'] = number_of_respond_by_submitter_total / submission_num_comments
 
-        features = [comment_author_number_submission, comment_author_number_comment, sub_author_number_submission,
-                    sub_author_number_comment, time_between_messages, time_ratio, is_first_comment_in_tree,
-                    number_of_comments_in_tree_by_comment_user, number_of_comments_in_tree_from_submitter,
-                    number_of_respond_by_submitter, number_of_respond_by_submitter_total,
-                    respond_to_comment_user_all_ratio, respond_to_comment_user_responses_ratio, respond_total_ratio]
+        # Sentiment analysis: Reut:
+        # for the comment:
+        comment_sentiment_list = sentiment_analysis(comment_body)
+        comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
+            comment_sentiment_list[0], comment_sentiment_list[1], comment_sentiment_list[2]
+        # for the submission:
+        sub_sentiment_list = sentiment_analysis(submission_body)
+        comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
+            sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
+        # for the title
+        title_sentiment_list = sentiment_analysis(submission_body)
+        comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
+            title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
+        # cosine similarity between submission's sentiment vector and comment sentiment vector:
+        sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
+        sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
+        comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)
 
-        labels = ('comment_author_number_submission', 'comment_author_number_comment', 'sub_author_number_submission',
-                  'sub_author_number_comment', 'time_between_messages', 'time_ratio', 'is_first_comment_in_tree',
-                  'number_of_comments_in_tree_by_comment_user', 'number_of_comments_in_tree_from_submitter',
-                  'number_of_respond_by_submitter', 'number_of_respond_by_submitter_total',
-                  'respond_to_comment_user_all_ratio', 'respond_to_comment_user_responses_ratio', 'respond_total_ratio')
+        # percent of adjective in the comment:
+        comment['percent_adj'] = percent_of_adj(comment_body)
 
-        featuresDF = pd.Series(features, index=labels)
-
-        comment_features = comment.append(featuresDF)
-        all_comments_features = pd.concat([all_comments_features, comment_features], axis=1)
+        # features = [comment_author_number_submission, comment_author_number_comment, sub_author_number_submission,
+        #             sub_author_number_comment, time_between_messages, time_ratio, is_first_comment_in_tree,
+        #             number_of_comments_in_tree_by_comment_user, number_of_comments_in_tree_from_submitter,
+        #             number_of_respond_by_submitter, number_of_respond_by_submitter_total,
+        #             respond_to_comment_user_all_ratio, respond_to_comment_user_responses_ratio, respond_total_ratio]
+        #
+        # labels = ('comment_author_number_submission', 'comment_author_number_comment', 'sub_author_number_submission',
+        #           'sub_author_number_comment', 'time_between_messages', 'time_ratio', 'is_first_comment_in_tree',
+        #           'number_of_comments_in_tree_by_comment_user', 'number_of_comments_in_tree_from_submitter',
+        #           'number_of_respond_by_submitter', 'number_of_respond_by_submitter_total',
+        #           'respond_to_comment_user_all_ratio', 'respond_to_comment_user_responses_ratio', 'respond_total_ratio')
+        #
+        # featuresDF = pd.Series(features, index=labels)
+        #
+        # comment_features = comment.append(featuresDF)
+        all_comments_features = pd.concat([all_comments_features, comment], axis=1)
         all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
 
     # export the data to csv file
