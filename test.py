@@ -178,26 +178,40 @@
 # ##################################################################################################
 
 
-import pandas as pd
-import os
+# import pandas as pd
+# import os
+#
+# base_directory = os.path.abspath(os.curdir)
+# change_my_view_directory = os.path.join(base_directory, 'change my view')
+# data = pd.read_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all.csv'))
+#
+# treatment = data.loc[data['treated'] == 1]
+# print('size of treated = {}'.format(treatment.shape))
+# control = data.loc[data['treated'] == 0]
+# print('size of control = {}'.format(control.shape))
+# no_parent = data.loc[data['treated'] == -1]
+# print('size of no_parent = {}'.format(no_parent.shape))
+#
+# treatment_delta = data.loc[(data['treated'] == 1) & (data['delta'] == 1)]
+# print('size of treated_delta = {}'.format(treatment_delta.shape))
+# treatment_no_delta = data.loc[(data['treated'] == 1) & (data['delta'] == 0)]
+# print('size of treatment_no_delta = {}'.format(treatment_no_delta.shape))
+# control_delta = data.loc[(data['treated'] == 0) & (data['delta'] == 1)]
+# print('size of control_delta = {}'.format(control_delta.shape))
+# control_no_delta = data.loc[(data['treated'] == 0) & (data['delta'] == 0)]
+# print('size of control_no_delta = {}'.format(control_no_delta.shape))
 
-base_directory = os.path.abspath(os.curdir)
-change_my_view_directory = os.path.join(base_directory, 'change my view')
-data = pd.read_csv(os.path.join(change_my_view_directory, 'data_label_treatment.csv'))
+import datetime
+import time
+import pytz
+import math
 
-treatment = data.loc[data['treated'] == 1]
-print('size of treated = {}'.format(treatment.shape))
-control = data.loc[data['treated'] == 0]
-print('size of control = {}'.format(control.shape))
-no_parent = data.loc[data['treated'] == -1]
-print('size of no_parent = {}'.format(no_parent.shape))
 
-treatment_delta = data.loc[(data['treated'] == 1) & (data['delta'] == 1)]
-print('size of treated_delta = {}'.format(treatment_delta.shape))
-treatment_no_delta = data.loc[(data['treated'] == 1) & (data['delta'] == 0)]
-print('size of treatment_no_delta = {}'.format(treatment_no_delta.shape))
-control_delta = data.loc[(data['treated'] == 0) & (data['delta'] == 1)]
-print('size of control_delta = {}'.format(control_delta.shape))
-control_no_delta = data.loc[(data['treated'] == 0) & (data['delta'] == 0)]
-print('size of control_no_delta = {}'.format(control_no_delta.shape))
+tz = pytz.timezone('GMT')  # America/New_York
+date_comment = datetime.datetime.fromtimestamp(1521029983, tz)
+utc_now = int(time.time())
+date_now = datetime.datetime.fromtimestamp(utc_now, tz)
+c = date_now - date_comment
+months = divmod(c.days * 86400 + c.seconds, 60)
+print(c.days/31)
 
