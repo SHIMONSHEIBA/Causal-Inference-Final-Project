@@ -33,13 +33,18 @@ group_submission_num_comments_count = group_submission_num_comments.count()
 filter_results = join_result.loc[(join_result['time_between'] < 10080.0) & (join_result['comment_len'] > 150)
                                  & (join_result['comment_author'] != 'DeltaBot')
                                  & (~join_result['comment_body'].str.contains('your comment has been removed:'))
-                                 & (join_result['comment_body'].str.contains('[deleted]'))]
+                                 & (join_result['comment_body'].str.contains('[deleted]'))
+                                 & (~join_result['comment_author'].isnull())
+                                 & (~join_result['submission_author'].isnull())]
 
 units = filter_results.loc[(filter_results['comment_author'] != filter_results['submission_author'])]
+
+print(filter_results.shape)
 
 filter_results.to_csv(os.path.join(change_my_view_directory, 'all_data.csv'))
 filter_results.to_pickle(os.path.join(change_my_view_directory, 'all_data.pkl'))
 
+print(units.shape)
 units.to_csv(os.path.join(change_my_view_directory, 'units.csv'))
 units.to_pickle(os.path.join(change_my_view_directory, 'units.pkl'))
 

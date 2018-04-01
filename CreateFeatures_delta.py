@@ -154,7 +154,15 @@ class CreateFeatures:
         user_all_submissions = self.all_data.loc[self.all_data['submission_author'] == user]
         first_comment_time = user_all_comments.comment_created_utc.min()
         first_submission_time = user_all_submissions.submission_created_utc.min()
-        first_post_time = min(first_comment_time, first_submission_time)
+        if not user_all_comments.empty:  # the user has not write any comment - so the min will be nan
+            first_post_time = min(first_comment_time, first_submission_time)
+        else:
+            if not user_all_submissions.empty:
+                first_post_time = min(first_submission_time, first_comment_time)
+            else:
+                print('no comments and submission for user: {}'.format(user))
+                logging.info('no comments and submission for user: {}'.format(user))
+                return 0
         tz = pytz.timezone('GMT')  # America/New_York
         date_comment = datetime.fromtimestamp(first_post_time, tz)
         utc_now = int(time.time())
@@ -218,8 +226,8 @@ class CreateFeatures:
             # parent_id = "b'" + parent_id + "'"
             parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
             if parent.empty:  # if we don't have the parent as comment in the data
-                print('no parent comment for comment_id: {}'.format(comment_id))
-                logging.info('no parent comment for comment_id: {}'.format(comment_id))
+                # print('no parent comment for comment_id: {}'.format(comment_id))
+                # logging.info('no parent comment for comment_id: {}'.format(comment_id))
                 parent_body = ''
                 parent_author = ''
                 no_parent = True
@@ -242,8 +250,8 @@ class CreateFeatures:
         else:  # if the parent author is not the submitter
             if (quote in submission_body) or (quote in submission_title):  # we only care of he quote the submission:
                 # self.units.loc[index, 'treated'] = 1
-                print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
-                logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                # print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                # logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 return 1
             else:
                 if no_parent:
@@ -433,7 +441,7 @@ def main():
         comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
-        all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+        # all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
 
         new_index += 1
 
