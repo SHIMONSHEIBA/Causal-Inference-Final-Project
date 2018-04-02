@@ -44,6 +44,10 @@ class CreateFeatures:
         self.units = pd.read_csv(os.path.join(data_directory, 'units.csv'))  # all the units, with label
         pd.to_numeric(self.units['submission_created_utc'])
         pd.to_numeric(self.units['comment_created_utc'])
+        self.units = self.units[['comment_body', 'comment_author', 'submission_author', 'submission_body',
+                                 'submission_title', 'comment_id', 'parent_id', 'comment_created_utc',
+                                 'submission_created_utc', 'submission_id', 'submission_num_comments',
+                                 'time_between']]
         self.units['comment_id'] = self.units.comment_id.str.lstrip("b'")
         self.units['comment_id'] = self.units.comment_id.str.rstrip("'")
         self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_1")
@@ -57,6 +61,8 @@ class CreateFeatures:
         self.all_data['comment_id'] = self.all_data.comment_id.str.lstrip("b'")
         self.all_data['comment_id'] = self.all_data.comment_id.str.rstrip("'")
         self.all_data['parent_id'] = self.all_data.parent_id.str.rstrip("'")
+        self.all_data = self.all_data[['submission_id', 'comment_author', 'submission_author', 'comment_id',
+                                       'comment_created_utc', 'submission_created_utc', 'parent_id', 'comment_body']]
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -265,7 +271,7 @@ class CreateFeatures:
 
     def topic_model(self):
         doc_clean = [clean(doc['comment_body']).split() for index, doc in self.units.iterrows()]
-        # Creating the term dictionary of our courpus, where every unique term is assigned an index.
+        # Creating the term dictionary of our corpus, where every unique term is assigned an index.
         dictionary = corpora.Dictionary(doc_clean)
 
         # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
@@ -312,7 +318,10 @@ def percent_of_adj(text):
     all_pos = pos_df['POS']
     freq = nk.FreqDist(all_pos)
     number_adj_pos = freq['JJ'] + freq['JJS'] + freq['JJR']
-    percent_of_adj_pos = number_all_pos/number_adj_pos
+    if number_adj_pos == 0:
+        percent_of_adj_pos = 0
+    else:
+        percent_of_adj_pos = number_all_pos/number_adj_pos
     return percent_of_adj_pos
 
 
@@ -357,7 +366,7 @@ def main():
     new_index = 0
     for index, comment in create_features.units.iterrows():
         if new_index % 100 == 0:
-            print('{}: Finish calculate {} samples'.format((time.asctime(time.localtime(time.time()))), index))
+            print('{}: Finish calculate {} samples'.format((time.asctime(time.localtime(time.time()))), new_index))
         comment_author = copy(comment['comment_author'])
         comment_body = copy(comment['comment_body'])
         comment_time = copy(comment['comment_created_utc'])
@@ -441,7 +450,7 @@ def main():
         comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
-        # all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+        all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
 
         new_index += 1
 
