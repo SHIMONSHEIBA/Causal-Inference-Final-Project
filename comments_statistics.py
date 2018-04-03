@@ -46,10 +46,7 @@ filter_results = join_result.loc[(join_result['comment_len'] > 200) & (join_resu
                                  & (~join_result['submission_author'].isnull())]
 
 filter_results.to_csv('all_data_0304.csv')
-
-units = filter_results.loc[(filter_results['comment_author'] != filter_results['submission_author'])]
 print('200 char and 1 week')
-print(units.shape)
 
 # filter_results.to_csv(os.path.join(change_my_view_directory, 'all_data.csv'))
 # filter_results.to_pickle(os.path.join(change_my_view_directory, 'all_data.pkl'))
@@ -57,7 +54,7 @@ print(units.shape)
 # units.to_csv(os.path.join(change_my_view_directory, 'units.csv'))
 # units.to_pickle(os.path.join(change_my_view_directory, 'units.pkl'))
 
-delta = units.loc[units['delta'] == 1]
+delta = filter_results.loc[filter_results['delta'] == 1]
 print('delta size:',  delta.shape)
 # after_17 = filter_results.loc[filter_results['comment_created_utc'] >= 1475280000]
 # print(after_17.shape)
@@ -70,15 +67,18 @@ sub_delta = delta['submission_id']
 sub_delta = sub_delta.drop_duplicates()
 sub_delta = list(sub_delta)
 # after_17 = filter_results.loc[(filter_results['comment_created_utc'] >= 1483228800) & (filter_results['delta'] == 0)]
-no_delta_from_sub_delta = units.loc[(units['submission_id'].isin(sub_delta)) &
-                                    (units['delta'] == 0)]
+no_delta_from_sub_delta = filter_results.loc[(filter_results['submission_id'].isin(sub_delta)) &
+                                             (filter_results['delta'] == 0)]
 final_results = pd.concat([delta, no_delta_from_sub_delta])
 
 print('no_delta_from_sub_delta size:', no_delta_from_sub_delta.shape)
 print('final result size:', final_results.shape)
 
+units = filter_results.loc[(filter_results['comment_author'] != filter_results['submission_author'])]
+print(units.shape)
+
 final_results.to_csv(os.path.join(change_my_view_directory, 'units_0304.csv'))
-# final_results.to_pickle(os.path.join(change_my_view_directory, 'filter_comments_submissions_03041135.pkl'))
+final_results.to_pickle(os.path.join(change_my_view_directory, 'units_0304.pkl'))
 #
 # group_comment_author = units.groupby('comment_author')['comment_id']
 # group_comment_author_count = group_comment_author.count()

@@ -19,8 +19,8 @@ class CreateTreatment:
     This class build the treatment column - if there is a quote in the comment T=1
     """
     def __init__(self):
-        self.units = pd.read_csv(os.path.join(change_my_view_directory, 'units.csv'))
-        self.all_data = pd.read_csv(os.path.join(change_my_view_directory, 'all_data.csv'))
+        self.units = pd.read_csv(os.path.join(change_my_view_directory, 'units_0304.csv'))
+        self.all_data = pd.read_csv(os.path.join(change_my_view_directory, 'all_data_0304.csv'))
         self.all_data = self.all_data[['comment_body', 'comment_id', 'comment_author']]
         print('{}: Finish load data'.format(time.asctime(time.localtime(time.time()))))
         self.units.assign(treated='')
@@ -52,10 +52,10 @@ class CreateTreatment:
         print('data shape before filter -1 is: {}'.format(self.units.shape))
         final_data = self.units.loc[self.units['treated'] != -1]
         print('data shape after filter -1 is: {}'.format(final_data.shape))
-        self.units.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_1.csv'))
-        self.units.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_1.pkl'))
-        final_data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all.csv'))
-        final_data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all.pkl'))
+        self.units.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_minus_1_0304.csv'))
+        self.units.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all_with_minus_1_0304.pkl'))
+        final_data.to_csv(os.path.join(change_my_view_directory, 'data_label_treatment_all_0304.csv'))
+        final_data.to_pickle(os.path.join(change_my_view_directory, 'data_label_treatment_all_0304.pkl'))
 
         return
 
@@ -116,6 +116,7 @@ class CreateTreatment:
             parent_author = comment['submission_author']
         else:  # if not - get the parent
             parent_id = "b'" + parent_id + "'"
+            print(parent_id, comment_id)
             parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
             if parent.empty:  # if we don't have the parent as comment in the data
                 print('no parent comment for comment_id: {}'.format(comment_id))
