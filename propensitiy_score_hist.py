@@ -117,7 +117,9 @@ def main():
                      'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'commenter_seniority_days',
                      'nltk_com_sen_neutral', 'nltk_sub_sen_neutral', 'nltk_title_sen_neutral', 'topic_model'
                      'time_ratio', 'nltk_com_sen_pos', 'nltk_sub_sen_pos', 'nltk_title_sen_pos', 'comment_len'
-                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'hour_minutes_between_messages']
+                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'time_between_messages',
+                     'time_until_first_comment', 'time_between_comment_first_comment',
+                     'submmiter_commenter_tfidf_cos_sim']
     y_column_name = 'delta'
     propensity_class = PropensityScore(data=features_data, variable_names=variable_name,
                                        treatment_column=treatment_column_main, treatments_list=treatments_list)

@@ -1,6 +1,4 @@
 import pandas as pd
-import urllib.parse
-import urllib.request
 import time
 import os
 from copy import copy

@@ -24,6 +24,8 @@ class CreateTreatment:
         self.all_data = self.all_data[['comment_body', 'comment_id', 'comment_author']]
         print('{}: Finish load data'.format(time.asctime(time.localtime(time.time()))))
         self.units.assign(treated='')
+        print('data sizes: all data: {}, units data: {}'.format(self.all_data.shape,
+                                                                self.units.shape))
 
     def loop_over_data(self):
         """
@@ -106,9 +108,9 @@ class CreateTreatment:
             parent_id = parent_id.lstrip('b').strip("'").lstrip('t1_')
         elif 't3_' in parent_id:
             parent_id = parent_id.lstrip('b').strip("'").lstrip('t3_')
-        else:
-            print('not t_ in parent_id for comment_id: {}'.format(comment_id))
-            logging.info('not t_ in parent_id for comment_id: {}'.format(comment_id))
+        # else:
+        #     print('not t_ in parent_id for comment_id: {}'.format(comment_id))
+        #     logging.info('not t_ in parent_id for comment_id: {}'.format(comment_id))
 
         # if the parent is the submission - take the submission body
         if parent_id == comment['submission_id']:
@@ -116,11 +118,11 @@ class CreateTreatment:
             parent_author = comment['submission_author']
         else:  # if not - get the parent
             parent_id = "b'" + parent_id + "'"
-            print(parent_id, comment_id)
+            # print(parent_id, comment_id)
             parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
             if parent.empty:  # if we don't have the parent as comment in the data
-                print('no parent comment for comment_id: {}'.format(comment_id))
-                logging.info('no parent comment for comment_id: {}'.format(comment_id))
+                # print('no parent comment for comment_id: {}'.format(comment_id))
+                # logging.info('no parent comment for comment_id: {}'.format(comment_id))
                 parent_body = ''
                 parent_author = ''
                 no_parent = True
@@ -143,8 +145,8 @@ class CreateTreatment:
         else:  # if the parent author is not the submitter
             if (quote in submission_body) or (quote in submission_title):  # we only care of he quote the submission:
                 self.units.loc[index, 'treated'] = 1
-                print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
-                logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                # print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
+                # logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 return 1
             else:
                 if no_parent:

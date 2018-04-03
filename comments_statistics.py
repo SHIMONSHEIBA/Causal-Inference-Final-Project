@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 base_directory = os.path.abspath(os.curdir)
-change_my_view_directory = os.path.join(base_directory, 'importing_change_my_view')
+change_my_view_directory = os.path.join(base_directory, 'change my view')
 comments = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions comments with label.csv'))
 submissions = pd.read_csv(os.path.join(change_my_view_directory, 'all submissions.csv'))
 
@@ -44,8 +44,6 @@ filter_results = join_result.loc[(join_result['comment_len'] > 200) & (join_resu
                                  & (join_result['comment_body'].str.contains('[deleted]'))
                                  & (~join_result['comment_author'].isnull())
                                  & (~join_result['submission_author'].isnull())]
-
-
 print('200 char and 1 week')
 
 # filter_results.to_csv(os.path.join(change_my_view_directory, 'all_data.csv'))
@@ -73,7 +71,9 @@ final_results = pd.concat([delta, no_delta_from_sub_delta])
 
 print('no_delta_from_sub_delta size:', no_delta_from_sub_delta.shape)
 print('final result size:', final_results.shape)
-final_results.to_csv('all_data_0304.csv')
+
+final_results.to_csv(os.path.join(change_my_view_directory, 'all_data_0304.csv'))
+
 units = final_results.loc[(final_results['comment_author'] != final_results['submission_author'])]
 print(units.shape)
 

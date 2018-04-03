@@ -7,8 +7,6 @@ import logging
 import pytz
 from copy import copy
 import os
-import urllib.parse
-import urllib.request
 import nltk as nk
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -21,6 +19,7 @@ from nltk.stem import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 from gensim.sklearn_api import ldamodel
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from collections import defaultdict
 
 base_directory = os.path.abspath(os.curdir)
 data_directory = os.path.join(base_directory, "change my view")
@@ -49,6 +48,8 @@ class CreateFeatures:
         # all the units, with label
         self.units = pd.read_csv(os.path.join(data_directory, 'units_0304.csv'), skipinitialspace=True,
                                  usecols=units_columns)
+        # self.units = pd.read_excel(os.path.join(data_directory, 'small_data.xlsx'), skipinitialspace=True,
+        #                          usecols=units_columns)
         pd.to_numeric(self.units['submission_created_utc'])
         pd.to_numeric(self.units['comment_created_utc'])
 
@@ -65,16 +66,15 @@ class CreateFeatures:
                           number_of_comments_in_tree_from_submitter='', number_of_respond_by_submitter='',
                           number_of_respond_by_submitter_total='', respond_to_comment_user_all_ratio='',
                           respond_to_comment_user_responses_ratio='', respond_total_ratio='',
-                          submitter_seniority_days='', commenter_seniority_days='', delta='',
-                          nltk_com_sen_pos='', nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
-                          nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
-                          nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
+                          submitter_seniority_days='', commenter_seniority_days='', time_between_messages='')
 
         all_data_columns = ['comment_body', 'comment_author', 'submission_author', 'submission_body', 'submission_title',
                             'comment_id', 'parent_id', 'comment_created_utc', 'submission_created_utc', 'submission_id',
                             'submission_num_comments', 'time_between']
         self.all_data = pd.read_csv(os.path.join(data_directory, 'all_data_0304.csv'), skipinitialspace=True,
                                     usecols=all_data_columns)
+        # self.all_data = pd.read_excel(os.path.join(data_directory, 'small_data.xlsx'), skipinitialspace=True,
+        #                          usecols=units_columns)
         pd.to_numeric(self.all_data['comment_created_utc'])
         pd.to_numeric(self.all_data['submission_created_utc'])
         self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_1")
@@ -82,6 +82,18 @@ class CreateFeatures:
         self.all_data['comment_id'] = self.all_data.comment_id.str.lstrip("b'")
         self.all_data['comment_id'] = self.all_data.comment_id.str.rstrip("'")
         self.all_data['parent_id'] = self.all_data.parent_id.str.rstrip("'")
+
+        # data after drop duplications:
+        self.submission_no_dup = self.all_data[['submission_author', 'submission_id', 'submission_created_utc']]
+        self.submission_no_dup = self.submission_no_dup.drop_duplicates()
+
+        # create dict with the data for each submission:
+        start_time = time.time()
+        self.submission_data_dict = dict()
+        submission_ids = self.submission_no_dup['submission_id']
+        for index, submission_id in submission_ids.iteritems():
+            self.submission_data_dict[submission_id] = self.all_data.loc[self.all_data['submission_id'] == submission_id]
+        print('time to create submission dict: ', time.time() - start_time)
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -92,68 +104,111 @@ class CreateFeatures:
         :return: the number of messages of the messages_type
         :rtype int
         """
-
-        data = self.all_data[[messages_type + '_author', messages_type + '_id', messages_type + '_created_utc']]
-        data = data.drop_duplicates()
-        relevant_data = data.loc[(data[messages_type + '_author'] == user)
-                                 & (data[messages_type + '_created_utc'] < comment_time)]
+        # data = self.all_data[[messages_type + '_author', messages_type + '_id', messages_type + '_created_utc']]
+        # data = data.drop_duplicates()
+        # after_drop_time = time.time()
+        if messages_type == 'comment':
+            relevant_data = self.all_data.loc[(self.all_data[messages_type + '_author'] == user)
+                                              & (self.all_data[messages_type + '_created_utc'] < comment_time)]
+        else:
+            relevant_data =\
+                self.submission_no_dup.loc[(self.submission_no_dup[messages_type + '_author'] == user)
+                                           & (self.submission_no_dup[messages_type + '_created_utc'] < comment_time)]
         number_of_posts = relevant_data.shape[0]
 
         return number_of_posts
 
-    def comment_in_tree(self, user, comment_time, submission_id):
+    def comment_in_tree(self, user, comment_time, submission_id, comment_user=None,
+                        submitter_respond_to_comment_user=False):
         """
         Check if this is the first comment the comment author posted for this submission
-        :param str user: the user name we want to check
+        :param str user: the user name we want to check (either submitter or comment user)
         :param int comment_time: the time the comment in the unit was posted (time t)
         :param int submission_id: the submission id
+        :param str comment_user: the comment user name of this unit
+        :param bool submitter_respond_to_comment_user: whether we check the submitter_respond_to_comment_user or not
         :return: int is_first_comment_in_tree: 1 - if this is the first time, 0 - otherwise
                 int number_of_comments_in_tree: number of comments he wrote in the submission tree until time t
-        """
-
-        all_comments_user_in_tree = self.all_data.loc[(self.all_data['comment_author'] == user)
-                                                      & (self.all_data['comment_created_utc'] < comment_time)
-                                                      & (self.all_data['submission_id'] == submission_id)]
-        if all_comments_user_in_tree.empty:
-            number_of_comments_in_tree = 0
-            is_first_comment_in_tree = 1
-        else:
-            number_of_comments_in_tree = all_comments_user_in_tree.shape[0]
-            is_first_comment_in_tree = 0
-
-        return is_first_comment_in_tree, number_of_comments_in_tree
-
-    def submitter_respond_to_comment_user(self, comment_user, submitter, comment_time, submission_id):
-        """
-        Calculate the number of comments the submitter posted as a response to the comment author in this submission
-        :param str comment_user: the comment user
-        :param str submitter: the submission user
-        :param int comment_time: the time the comment in the unit was posted (time t)
-        :param int submission_id: the submission id
-        :return: int number_of_respond_by_submitter: the number of responds by the submitter to the comment user
+                int number_of_respond_by_submitter: the number of responds by the submitter to the comment user
                 int number_of_respond_by_submitter_total: the number of responds by the submitter in total
         """
 
-        all_comments_submitter_in_tree = self.all_data.loc[(self.all_data['comment_author'] == submitter)
-                                                           & (self.all_data['comment_created_utc'] < comment_time)
-                                                           & (self.all_data['submission_id'] == submission_id)]
-        # the parent ids of all the comments that were written by the submitter
-        parent_id_list = list(all_comments_submitter_in_tree['parent_id'])
-        # take all comments in this submission that were written by the comment user and are the parents of the
-        # submitter's comments - i.e the submitter respond to the comment user
-        parent_by_the_comment_author = self.all_data.loc[(self.all_data['comment_id'].isin(parent_id_list))
-                                                         & (self.all_data['comment_author'] == comment_user)
-                                                         & (self.all_data['comment_created_utc'] < comment_time)
-                                                         & (self.all_data['submission_id'] == submission_id)]
+        # all_comments_user_in_tree = self.all_data.loc[(self.all_data['comment_author'] == user)
+        #                                               & (self.all_data['comment_created_utc'] < comment_time)
+        #                                               & (self.all_data['submission_id'] == submission_id)]
+        submission_data = self.submission_data_dict[submission_id]
+        all_comments_user_in_tree = submission_data.loc[(submission_data['comment_author'] == user)
+                                                        & (submission_data['comment_created_utc'] < comment_time)]
+        if all_comments_user_in_tree.empty:
+            number_of_comments_in_tree = 0
+            is_first_comment_in_tree = 1
+            # if there are no comments before comment_time - if this is the submitter, no need to check the
+            # number_of_respond_by_submitter and number_of_respond_by_submitter_total - they will be 0
+            number_of_respond_by_submitter = 0
+            number_of_respond_by_submitter_total = 0
+            return is_first_comment_in_tree, number_of_comments_in_tree, number_of_respond_by_submitter,\
+                   number_of_respond_by_submitter_total
+        else:  # if there are comments in before comment_time from this user
+            number_of_comments_in_tree = all_comments_user_in_tree.shape[0]
+            is_first_comment_in_tree = 0
 
-        # number of responses by submitter : parent_id != submission_id
-        respond_by_submitter_total =\
-            all_comments_submitter_in_tree.loc[all_comments_submitter_in_tree['parent_id'] != submission_id]
+            if not submitter_respond_to_comment_user:  # if this the comment user
+                return is_first_comment_in_tree, number_of_comments_in_tree, 0, 0
+            else:  # submitter = user
+                # the parent ids of all the comments that were written by the submitter in this submission until time t
+                parent_id_list = list(all_comments_user_in_tree['parent_id'])
+                # take all comments in this submission that were written by the comment user and are the parents of the
+                # submitter's comments - i.e the submitter respond to the comment user
+                # parent_by_the_comment_author = self.all_data.loc[(self.all_data['comment_id'].isin(parent_id_list))
+                #                                                  & (self.all_data['comment_author'] == comment_user)
+                #                                                  & (self.all_data['comment_created_utc'] < comment_time)
+                #                                                  & (self.all_data['submission_id'] == submission_id)]
+                parent_by_the_comment_author = submission_data[(submission_data['comment_id'].isin(parent_id_list))
+                                                               & (submission_data['comment_author'] == comment_user)
+                                                               & (submission_data['comment_created_utc'] < comment_time)]
 
-        number_of_respond_by_submitter = parent_by_the_comment_author.shape[0]
-        number_of_respond_by_submitter_total = respond_by_submitter_total.shape[0]
+                # number of responses by submitter : parent_id != submission_id -
+                # the submitter wrote a comment to someone - respond
+                respond_by_submitter_total =\
+                    all_comments_user_in_tree.loc[all_comments_user_in_tree['parent_id'] != submission_id]
 
-        return number_of_respond_by_submitter, number_of_respond_by_submitter_total
+                number_of_respond_by_submitter = parent_by_the_comment_author.shape[0]
+                number_of_respond_by_submitter_total = respond_by_submitter_total.shape[0]
+
+                return is_first_comment_in_tree, number_of_comments_in_tree, number_of_respond_by_submitter,\
+                        number_of_respond_by_submitter_total
+
+    # def submitter_respond_to_comment_user(self, comment_user, submitter, comment_time, submission_id):
+    #     """
+    #     Calculate the number of comments the submitter posted as a response to the comment author in this submission
+    #     :param str comment_user: the comment user
+    #     :param str submitter: the submission user
+    #     :param int comment_time: the time the comment in the unit was posted (time t)
+    #     :param int submission_id: the submission id
+    #     :return: int number_of_respond_by_submitter: the number of responds by the submitter to the comment user
+    #             int number_of_respond_by_submitter_total: the number of responds by the submitter in total
+    #     """
+    #
+    #     all_comments_submitter_in_tree = self.all_data.loc[(self.all_data['comment_author'] == submitter)
+    #                                                        & (self.all_data['comment_created_utc'] < comment_time)
+    #                                                        & (self.all_data['submission_id'] == submission_id)]
+    #     # the parent ids of all the comments that were written by the submitter
+    #     parent_id_list = list(all_comments_submitter_in_tree['parent_id'])
+    #     # take all comments in this submission that were written by the comment user and are the parents of the
+    #     # submitter's comments - i.e the submitter respond to the comment user
+    #     parent_by_the_comment_author = self.all_data.loc[(self.all_data['comment_id'].isin(parent_id_list))
+    #                                                      & (self.all_data['comment_author'] == comment_user)
+    #                                                      & (self.all_data['comment_created_utc'] < comment_time)
+    #                                                      & (self.all_data['submission_id'] == submission_id)]
+    #
+    #     # number of responses by submitter : parent_id != submission_id
+    #     respond_by_submitter_total =\
+    #         all_comments_submitter_in_tree.loc[all_comments_submitter_in_tree['parent_id'] != submission_id]
+    #
+    #     number_of_respond_by_submitter = parent_by_the_comment_author.shape[0]
+    #     number_of_respond_by_submitter_total = respond_by_submitter_total.shape[0]
+    #
+    #     return number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
     def time_to_first_comment(self, submission_id, submission_created_time, comment_created_time):
         """
@@ -163,8 +218,8 @@ class CreateFeatures:
         :param int comment_created_time: the utc time of the comment
         :return: int the seconds between the submission and the first comment in its tree
         """
-
-        all_submission_comments = self.all_data.loc[self.all_data['submission_id'] == submission_id]
+        # all_submission_comments = self.all_data.loc[self.all_data['submission_id'] == submission_id]
+        all_submission_comments = self.submission_data_dict[submission_id]
         time_of_first_comment = all_submission_comments['comment_created_utc'].min()
         time_until_first_comment = time_of_first_comment - submission_created_time
         time_between_comment_first_comment = comment_created_time - time_of_first_comment
@@ -290,23 +345,6 @@ class CreateFeatures:
                     # self.units.loc[index, 'treated'] = 0
                     return 0
 
-    def topic_model(self):
-        doc_clean = [clean(doc['comment_body']).split() for index, doc in self.units.iterrows()]
-        # Creating the term dictionary of our corpus, where every unique term is assigned an index.
-        dictionary = corpora.Dictionary(doc_clean)
-
-        # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
-        doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
-
-        # Creating the object for LDA model using gensim library
-        Lda = gensim.models.ldamodel.LdaModel
-        # model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
-        model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
-        model = model.fit(doc_term_matrix)
-        # Running and Trainign LDA model on the document term matrix.
-        result = model.transform(doc_term_matrix)
-        print(result)
-
 
 def sentiment_analysis(text):
     sid = SentimentIntensityAnalyzer()
@@ -401,7 +439,7 @@ def main():
         comment['submitter_number_comment']\
             = create_features.number_of_message(submission_author, comment_time, 'comment')
         comment['submitter_seniority_days'] = create_features.calculate_user_seniority(submission_author)
-        comment['is_first_comment_in_tree'], comment['number_of_comments_in_tree_by_comment_user'] = \
+        comment['is_first_comment_in_tree'], comment['number_of_comments_in_tree_by_comment_user'], _, _ = \
             create_features.comment_in_tree(comment_author, comment_time, submission_id)
 
         # Get the time between the submission and the comment time and the ration between the first comment:
@@ -418,11 +456,12 @@ def main():
         comment['time_between_comment_first_comment'] = time_between_comment_first_comment
 
         # Get the numbers of comments by the submitter
-        _, comment['number_of_comments_in_tree_from_submitter'] =\
-            create_features.comment_in_tree(submission_author, comment_time, submission_id)
-        number_of_respond_by_submitter, number_of_respond_by_submitter_total =\
-            create_features.submitter_respond_to_comment_user(comment_author, submission_author,
-                                                              comment_time, submission_id)
+        _, comment['number_of_comments_in_tree_from_submitter'], number_of_respond_by_submitter,\
+            number_of_respond_by_submitter_total =\
+            create_features.comment_in_tree(submission_author, comment_time, submission_id, comment_author, True)
+        # number_of_respond_by_submitter, number_of_respond_by_submitter_total =\
+        #     create_features.submitter_respond_to_comment_user(comment_author, submission_author,
+        #                                                       comment_time, submission_id)
         comment['number_of_respond_by_submitter'], comment['number_of_respond_by_submitter_total'] \
             = number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
@@ -464,7 +503,7 @@ def main():
         # comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
-        all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+        # all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
 
         new_index += 1
 

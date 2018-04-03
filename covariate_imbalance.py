@@ -143,6 +143,8 @@ if __name__ == '__main__':
                      'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'commenter_seniority_days',
                      'nltk_com_sen_neutral', 'nltk_sub_sen_neutral', 'nltk_title_sen_neutral', 'topic_model'
                      'time_ratio', 'nltk_com_sen_pos', 'nltk_sub_sen_pos', 'nltk_title_sen_pos', 'comment_len'
-                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'hour_minutes_between_messages']
+                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'time_between_messages',
+                     'time_until_first_comment', 'time_between_comment_first_comment',
+                     'submmiter_commenter_tfidf_cos_sim']
     imbalnce_obj = Imbalance(features_data, treatment_column_name, matched_column_name, variable_name, treatments)
     imbalnce_obj.imbalance()
