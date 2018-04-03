@@ -36,7 +36,7 @@ class Ate:
         predicted_control_as_treated = model.predict(predicted_control_as_treated_covariates)
 
         part_one = (1/num_of_treated)*sum(gold_treated - predicted_treated_as_control)
-        part_two = (1/num_of_control)*sum(gold_control - predicted_control_as_treated)
+        part_two = (1/num_of_control)*sum(predicted_control_as_treated - gold_control)
         covariate_adjustment = part_one + part_two
 
         return covariate_adjustment
