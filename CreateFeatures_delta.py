@@ -372,18 +372,18 @@ def main():
         submission_time = copy(comment['submission_created_utc'])
         submission_id = copy(comment['submission_id'])
         submission_num_comments = copy(comment['submission_num_comments'])
-        comment_body = copy(comment['comment_body'])
-        submission_body = copy(comment['submission_body'])
-        title = copy(comment['submission_title'])
+        # comment_body = copy(comment['comment_body'])
+        # submission_body = copy(comment['submission_body'])
+        # title = copy(comment['submission_title'])
 
         # treatment:
-        is_quote = create_features.loop_over_comment_for_quote(comment, comment_body)
-        if is_quote == -1:
-            print('{}: treatment = -1'.format((time.asctime(time.localtime(time.time())))))
-            number_of_treatment_minus_1 += 1
-            continue
-        else:
-            comment['treated'] = is_quote
+        # is_quote = create_features.loop_over_comment_for_quote(comment, comment_body)
+        # if is_quote != -1:
+        #     comment['treated'] = is_quote
+        # else:
+        #     print('{}: treatment = -1'.format((time.asctime(time.localtime(time.time())))))
+        #     number_of_treatment_minus_1 += 1
+        #     continue
 
         # Get comment author features:
         # print('{}: Get comment author features'.format((time.asctime(time.localtime(time.time())))))
@@ -443,25 +443,25 @@ def main():
         # Sentiment analysis:
         # for the comment:
         # print('{}: Sentiment analysis'.format((time.asctime(time.localtime(time.time())))))
-        comment_sentiment_list = sentiment_analysis(comment_body)
-        comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
-            comment_sentiment_list[0], comment_sentiment_list[1], comment_sentiment_list[2]
-        # for the submission:
-        sub_sentiment_list = sentiment_analysis(submission_body)
-        comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
-            sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
-        # for the title
-        title_sentiment_list = sentiment_analysis(title)
-        comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
-            title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
-        # cosine similarity between submission's sentiment vector and comment sentiment vector:
-        sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
-        sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
-        comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)[0][0]
-
-        # percent of adjective in the comment:
-        # print('{}: percent of adjective in the comment'.format((time.asctime(time.localtime(time.time())))))
-        comment['percent_adj'] = percent_of_adj(comment_body)
+        # comment_sentiment_list = sentiment_analysis(comment_body)
+        # comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
+        #     comment_sentiment_list[0], comment_sentiment_list[1], comment_sentiment_list[2]
+        # # for the submission:
+        # sub_sentiment_list = sentiment_analysis(submission_body)
+        # comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
+        #     sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
+        # # for the title
+        # title_sentiment_list = sentiment_analysis(title)
+        # comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
+        #     title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
+        # # cosine similarity between submission's sentiment vector and comment sentiment vector:
+        # sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
+        # sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
+        # comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)[0][0]
+        #
+        # # percent of adjective in the comment:
+        # # print('{}: percent of adjective in the comment'.format((time.asctime(time.localtime(time.time())))))
+        # comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
         all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')

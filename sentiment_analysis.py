@@ -105,7 +105,7 @@ def main():
         comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
-        all_comments_features.T.to_csv(os.path.join(data_directory, 'sentiment_analysis_CMV.csv'), encoding='utf-8')
+        # all_comments_features.T.to_csv(os.path.join(data_directory, 'sentiment_analysis_CMV.csv'), encoding='utf-8')
 
         new_index += 1
 
