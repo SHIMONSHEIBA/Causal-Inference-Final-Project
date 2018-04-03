@@ -7,22 +7,23 @@ import logging
 import pytz
 from copy import copy
 import os
-# import urllib.parse
-# import urllib.request
-# import nltk as nk
+import urllib.parse
+import urllib.request
+import nltk as nk
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-# from nltk.corpus import stopwords
-# from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
 import string
-# import gensim
-# from gensim import corpora
-# from nltk.stem import PorterStemmer
-# from nltk.tokenize import sent_tokenize, word_tokenize
-# from gensim.sklearn_api import ldamodel
+import gensim
+from gensim import corpora
+from nltk.stem import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
+from gensim.sklearn_api import ldamodel
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 base_directory = os.path.abspath(os.curdir)
-data_directory = os.path.join(base_directory, "importing_change_my_view")
+data_directory = os.path.join(base_directory, "change my view")
 
 log_directory = os.path.join(base_directory, 'logs')
 LOG_FILENAME = os.path.join(log_directory,
@@ -30,9 +31,9 @@ LOG_FILENAME = os.path.join(log_directory,
 logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, )
 
 # for topic modeling clean text
-# stop = set(stopwords.words('english'))
-# exclude = set(string.punctuation)
-# lemma = WordNetLemmatizer()
+stop = set(stopwords.words('english'))
+exclude = set(string.punctuation)
+lemma = WordNetLemmatizer()
 
 
 class CreateFeatures:
@@ -41,21 +42,39 @@ class CreateFeatures:
     """
     def __init__(self):
         # Load all relevant data
-        self.units = pd.read_csv(os.path.join(data_directory, 'units.csv'))  # all the units, with label
+        units_columns = ['comment_body', 'comment_author', 'submission_author', 'submission_body', 'submission_title',
+                         'comment_id', 'parent_id', 'comment_created_utc', 'submission_created_utc', 'submission_id',
+                         'submission_num_comments', 'time_between']
+
+        # all the units, with label
+        self.units = pd.read_csv(os.path.join(data_directory, 'units_0304.csv'), skipinitialspace=True,
+                                 usecols=units_columns)
         pd.to_numeric(self.units['submission_created_utc'])
         pd.to_numeric(self.units['comment_created_utc'])
-        self.units = self.units[['comment_body', 'comment_author', 'submission_author', 'submission_body',
-                                 'submission_title', 'comment_id', 'parent_id', 'comment_created_utc',
-                                 'submission_created_utc', 'submission_id', 'submission_num_comments',
-                                 'time_between']]
-        self.units = self.units.loc[(~self.units['comment_author'].isnull())
-                                    & (~self.units['submission_author'].isnull())]
+
         self.units['comment_id'] = self.units.comment_id.str.lstrip("b'")
         self.units['comment_id'] = self.units.comment_id.str.rstrip("'")
         self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_1")
         self.units['parent_id'] = self.units.parent_id.str.lstrip("b't_3")
         self.units['parent_id'] = self.units.parent_id.str.rstrip("'")
-        self.all_data = pd.read_csv(os.path.join(data_directory, 'all_data.csv'))
+
+        self.units.assign(commenter_number_submission='', commenter_number_comment='',
+                          submitter_number_submission='', submitter_number_comment='', time_ratio='',
+                          time_until_first_comment='', time_between_comment_first_comment='',
+                          is_first_comment_in_tree='', number_of_comments_in_tree_by_comment_user='',
+                          number_of_comments_in_tree_from_submitter='', number_of_respond_by_submitter='',
+                          number_of_respond_by_submitter_total='', respond_to_comment_user_all_ratio='',
+                          respond_to_comment_user_responses_ratio='', respond_total_ratio='',
+                          submitter_seniority_days='', commenter_seniority_days='', delta='',
+                          nltk_com_sen_pos='', nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
+                          nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
+                          nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
+
+        all_data_columns = ['comment_body', 'comment_author', 'submission_author', 'submission_body', 'submission_title',
+                            'comment_id', 'parent_id', 'comment_created_utc', 'submission_created_utc', 'submission_id',
+                            'submission_num_comments', 'time_between']
+        self.all_data = pd.read_csv(os.path.join(data_directory, 'all_data_0304.csv'), skipinitialspace=True,
+                                    usecols=all_data_columns)
         pd.to_numeric(self.all_data['comment_created_utc'])
         pd.to_numeric(self.all_data['submission_created_utc'])
         self.all_data['parent_id'] = self.all_data.parent_id.str.lstrip("b't_1")
@@ -63,10 +82,6 @@ class CreateFeatures:
         self.all_data['comment_id'] = self.all_data.comment_id.str.lstrip("b'")
         self.all_data['comment_id'] = self.all_data.comment_id.str.rstrip("'")
         self.all_data['parent_id'] = self.all_data.parent_id.str.rstrip("'")
-        self.all_data = self.all_data[['submission_id', 'comment_author', 'submission_author', 'comment_id',
-                                       'comment_created_utc', 'submission_created_utc', 'parent_id', 'comment_body']]
-        self.all_data = self.all_data.loc[(~self.all_data['comment_author'].isnull())
-                                          & (~self.all_data['submission_author'].isnull())]
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -140,19 +155,21 @@ class CreateFeatures:
 
         return number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
-    def time_to_first_comment(self, submission_id, submission_created_time):
+    def time_to_first_comment(self, submission_id, submission_created_time, comment_created_time):
         """
         Calculate the time between the submission and the first comment
         :param int submission_id: the submission id
         :param int submission_created_time: the utc time of the submission
+        :param int comment_created_time: the utc time of the comment
         :return: int the seconds between the submission and the first comment in its tree
         """
 
         all_submission_comments = self.all_data.loc[self.all_data['submission_id'] == submission_id]
         time_of_first_comment = all_submission_comments['comment_created_utc'].min()
         time_until_first_comment = time_of_first_comment - submission_created_time
+        time_between_comment_first_comment = comment_created_time - time_of_first_comment
 
-        return time_until_first_comment
+        return time_until_first_comment, time_between_comment_first_comment
 
     def calculate_user_seniority(self, user):
         """
@@ -207,7 +224,7 @@ class CreateFeatures:
         :param str comment_body: the comment's body
         :return: 0 if there is no quote in this part of comment, 1 if there is, -1 if we don't want this unit
         """
-        comment_id = comment['comment_id']
+
         no_parent = False
         quote = copy(comment_body)
         nn_index = quote.find('\\n')
@@ -273,60 +290,50 @@ class CreateFeatures:
                     # self.units.loc[index, 'treated'] = 0
                     return 0
 
-    # def topic_model(self):
-    #     doc_clean = [clean(doc['comment_body']).split() for index, doc in self.units.iterrows()]
-    #     # Creating the term dictionary of our corpus, where every unique term is assigned an index.
-    #     dictionary = corpora.Dictionary(doc_clean)
-    #
-    #     # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
-    #     doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
-    #
-    #     # Creating the object for LDA model using gensim library
-    #     Lda = gensim.models.ldamodel.LdaModel
-    #     # model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
-    #     model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
-    #     model = model.fit(doc_term_matrix)
-    #     # Running and Trainign LDA model on the document term matrix.
-    #     result = model.transform(doc_term_matrix)
-    #     print(result)
+    def topic_model(self):
+        doc_clean = [clean(doc['comment_body']).split() for index, doc in self.units.iterrows()]
+        # Creating the term dictionary of our corpus, where every unique term is assigned an index.
+        dictionary = corpora.Dictionary(doc_clean)
+
+        # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
+        doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
+
+        # Creating the object for LDA model using gensim library
+        Lda = gensim.models.ldamodel.LdaModel
+        # model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
+        model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
+        model = model.fit(doc_term_matrix)
+        # Running and Trainign LDA model on the document term matrix.
+        result = model.transform(doc_term_matrix)
+        print(result)
 
 
-# def sentiment_analysis(text):
-#     data = urllib.parse.urlencode({"text": text})
-#     data = data.replace("\n", "")
-#     data = data.lower()
-#     data = data.encode('ascii')
-#     with urllib.request.urlopen("http://text-processing.com/api/sentiment/", data) as f:
-#         result = f.read().decode('utf-8')
-#         index_of_neg = result.find('neg')
-#         index_of_neutral = result.find('neutral')
-#         index_of_pos = result.find('pos')
-#         index_of_label = result.find('label')
-#         neg_prob = float(result[index_of_neg + 6:index_of_neutral - 3])
-#         neutral_prob = float(result[index_of_neutral + 10:index_of_pos - 3])
-#         pos_prob = float(result[index_of_pos + 6:index_of_label - 4])
-#         return [pos_prob, neg_prob, neutral_prob]
+def sentiment_analysis(text):
+    sid = SentimentIntensityAnalyzer()
+    result = sid.polarity_scores(text)
+    neg_prob = result['neg']
+    neutral_prob = result['neu']
+    pos_prob = result['pos']
+    return [pos_prob, neg_prob, neutral_prob]
 
 
-# def get_POS(text):
-#     text_parsed = nk.word_tokenize(text)
-#     words_pos = nk.pos_tag(text_parsed)
-#
-#     return words_pos
+def get_POS(text):
+    text_parsed = nk.word_tokenize(text)
+    words_pos = nk.pos_tag(text_parsed)
+
+    return words_pos
 
 
-# def percent_of_adj(text):
-#     pos_text = get_POS(text)
-#     pos_df = pd.DataFrame(pos_text, columns=['word', 'POS'])
-#     number_all_pos = pos_df.shape[0]
-#     all_pos = pos_df['POS']
-#     freq = nk.FreqDist(all_pos)
-#     number_adj_pos = freq['JJ'] + freq['JJS'] + freq['JJR']
-#     if number_adj_pos == 0:
-#         percent_of_adj_pos = 0
-#     else:
-#         percent_of_adj_pos = number_all_pos/number_adj_pos
-#     return percent_of_adj_pos
+def percent_of_adj(text):
+    pos_text = get_POS(text)
+    pos_df = pd.DataFrame(pos_text, columns=['word', 'POS'])
+    number_all_pos = pos_df.shape[0]
+    all_pos = pos_df['POS']
+    freq = nk.FreqDist(all_pos)
+    number_adj_pos = freq['JJ'] + freq['JJS'] + freq['JJR']
+    percent_of_adj_pos = number_adj_pos/number_all_pos
+
+    return percent_of_adj_pos
 
 
 def clean(doc):
@@ -354,39 +361,32 @@ def main():
     #     np.floor((create_features.units['time_between'] -
     #               3600 * np.floor(create_features.units[['time_between']].div(3600.0, axis=0)))/60.0)/100.0
 
-    create_features.units.assign(commenter_number_submission='', commenter_number_comment='',
-                                 submitter_number_submission='', submitter_number_comment='', time_ratio='',
-                                 is_first_comment_in_tree='', number_of_comments_in_tree_by_comment_user='',
-                                 number_of_comments_in_tree_from_submitter='', number_of_respond_by_submitter='',
-                                 number_of_respond_by_submitter_total='', respond_to_comment_user_all_ratio='',
-                                 respond_to_comment_user_responses_ratio='', respond_total_ratio='',
-                                 submitter_seniority_days='', commenter_seniority_days='', nltk_com_sen_pos='',
-                                 nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
-                                 nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
-                                 nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
-
     all_comments_features = pd.DataFrame()
     new_index = 0
+    number_of_treatment_minus_1 = 0
     for index, comment in create_features.units.iterrows():
         if new_index % 100 == 0:
             print('{}: Finish calculate {} samples'.format((time.asctime(time.localtime(time.time()))), new_index))
         comment_author = copy(comment['comment_author'])
-        comment_body = copy(comment['comment_body'])
         comment_time = copy(comment['comment_created_utc'])
         submission_time = copy(comment['submission_created_utc'])
         submission_id = copy(comment['submission_id'])
         submission_num_comments = copy(comment['submission_num_comments'])
+        comment_body = copy(comment['comment_body'])
         submission_body = copy(comment['submission_body'])
         title = copy(comment['submission_title'])
 
-        # # treatment
-        # is_quote = create_features.loop_over_comment_for_quote(comment, comment_body)
-        # if is_quote == -1:
-        #     continue
-        # else:
-        #     comment['treated'] = is_quote
+        # treatment:
+        is_quote = create_features.loop_over_comment_for_quote(comment, comment_body)
+        if is_quote == -1:
+            print('{}: treatment = -1'.format((time.asctime(time.localtime(time.time())))))
+            number_of_treatment_minus_1 += 1
+            continue
+        else:
+            comment['treated'] = is_quote
 
         # Get comment author features:
+        # print('{}: Get comment author features'.format((time.asctime(time.localtime(time.time())))))
         comment['commenter_number_submission'] =\
             create_features.number_of_message(comment_author, comment_time, 'submission')
         comment['commenter_number_comment'] =\
@@ -394,6 +394,7 @@ def main():
         comment['commenter_seniority_days'] = create_features.calculate_user_seniority(comment_author)
 
         # Get submission author features:
+        # print('{}: Get submission author features'.format((time.asctime(time.localtime(time.time())))))
         submission_author = comment['submission_author']
         comment['submitter_number_submission']\
             = create_features.number_of_message(submission_author, comment_time, 'submission')
@@ -404,12 +405,19 @@ def main():
             create_features.comment_in_tree(comment_author, comment_time, submission_id)
 
         # Get the time between the submission and the comment time and the ration between the first comment:
+        # print('{}: Get the time between the submission and the comment time and the ration between the first comment'
+        #       .format((time.asctime(time.localtime(time.time())))))
         time_to_comment = comment['time_between']
         time_between_messages_hour = math.floor(time_to_comment/3600.0)
         time_between_messages_min = math.floor((time_to_comment - 3600*time_between_messages_hour)/60.0)/100.0
         comment['time_between_messages'] = time_between_messages_hour + time_between_messages_min
-        time_until_first_comment = create_features.time_to_first_comment(submission_id, submission_time)
-        comment['time_ratio'] = comment_time - time_until_first_comment
+        time_until_first_comment, time_between_comment_first_comment =\
+            create_features.time_to_first_comment(submission_id, submission_time, comment_time)
+        comment['time_ratio'] = time_until_first_comment/time_to_comment
+        comment['time_until_first_comment'] = time_until_first_comment
+        comment['time_between_comment_first_comment'] = time_between_comment_first_comment
+
+        # Get the numbers of comments by the submitter
         _, comment['number_of_comments_in_tree_from_submitter'] =\
             create_features.comment_in_tree(submission_author, comment_time, submission_id)
         number_of_respond_by_submitter, number_of_respond_by_submitter_total =\
@@ -419,6 +427,7 @@ def main():
             = number_of_respond_by_submitter, number_of_respond_by_submitter_total
 
         # Ratio of comments number:
+        # print('{}: Ratio of comments number'.format((time.asctime(time.localtime(time.time())))))
         if submission_num_comments == 0:
             comment['respond_to_comment_user_all_ratio'] = 0
             comment['respond_total_ratio'] = 0
@@ -433,24 +442,26 @@ def main():
 
         # Sentiment analysis:
         # for the comment:
-        # comment_sentiment_list = sentiment_analysis(comment_body)
-        # comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
-        #     comment_sentiment_list[0], comment_sentiment_list[1], comment_sentiment_list[2]
-        # # for the submission:
-        # sub_sentiment_list = sentiment_analysis(submission_body)
-        # comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
-        #     sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
-        # # for the title
-        # title_sentiment_list = sentiment_analysis(title)
-        # comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
-        #     title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
-        # # cosine similarity between submission's sentiment vector and comment sentiment vector:
-        # sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
-        # sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
-        # comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)[0][0]
+        # print('{}: Sentiment analysis'.format((time.asctime(time.localtime(time.time())))))
+        comment_sentiment_list = sentiment_analysis(comment_body)
+        comment['nltk_com_sen_pos'], comment['nltk_com_sen_neg'], comment['nltk_com_sen_neutral'] = \
+            comment_sentiment_list[0], comment_sentiment_list[1], comment_sentiment_list[2]
+        # for the submission:
+        sub_sentiment_list = sentiment_analysis(submission_body)
+        comment['nltk_sub_sen_pos'], comment['nltk_sub_sen_neg'], comment['nltk_sub_sen_neutral'] = \
+            sub_sentiment_list[0], sub_sentiment_list[1], sub_sentiment_list[2]
+        # for the title
+        title_sentiment_list = sentiment_analysis(title)
+        comment['nltk_title_sen_pos'], comment['nltk_title_sen_neg'], comment['nltk_title_sen_neutral'] = \
+            title_sentiment_list[0], title_sentiment_list[1], title_sentiment_list[2]
+        # cosine similarity between submission's sentiment vector and comment sentiment vector:
+        sentiment_sub = np.array(sub_sentiment_list).reshape(1, -1)
+        sentiment_com = np.array(comment_sentiment_list).reshape(1, -1)
+        comment['nltk_sim_sen'] = cosine_similarity(sentiment_sub, sentiment_com)[0][0]
 
         # percent of adjective in the comment:
-        # comment['percent_adj'] = percent_of_adj(comment_body)
+        # print('{}: percent of adjective in the comment'.format((time.asctime(time.localtime(time.time())))))
+        comment['percent_adj'] = percent_of_adj(comment_body)
 
         all_comments_features = pd.concat([all_comments_features, comment], axis=1)
         all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
@@ -459,6 +470,7 @@ def main():
 
     # export the data to csv file
     all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+    print('number_of_treatment_minus_1: ', number_of_treatment_minus_1)
 
 
 if __name__ == '__main__':
