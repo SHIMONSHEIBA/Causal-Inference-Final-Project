@@ -131,20 +131,24 @@ class Imbalance:
 
 
 if __name__ == '__main__':
-    features_data = pd.read_csv(os.path.join(features_directory, 'features_CMV.csv'))
+    features_data = pd.read_csv(os.path.join(features_directory, 'final_df_CMV.csv'))
     treatments = [1]
     treatment_column_name = 'treated'
     matched_column_name = 'matched'
-    variable_name = ['commenter_number_submission', 'submitter_number_submission', 'is_first_comment_in_tree',
+    variable_name = ['commenter_number_submission', 'submitter_number_submission',
                      'number_of_comments_in_tree_from_submitter', 'number_of_respond_by_submitter_total',
-                     'respond_to_comment_user_responses_ratio', 'submitter_seniority_days', 'nltk_com_sen_neg',
-                     'nltk_sub_sen_neg', 'nltk_title_sen_neg', 'commenter_number_comment', 'submitter_number_comment',
+                     'respond_to_comment_user_responses_ratio', 'submitter_seniority_days', 'is_first_comment_in_tree',
+                     'commenter_number_comment', 'submitter_number_comment',
                      'number_of_comments_in_tree_by_comment_user', 'number_of_respond_by_submitter',
                      'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'commenter_seniority_days',
-                     'nltk_com_sen_neutral', 'nltk_sub_sen_neutral', 'nltk_title_sen_neutral', 'topic_model'
-                     'time_ratio', 'nltk_com_sen_pos', 'nltk_sub_sen_pos', 'nltk_title_sen_pos', 'comment_len'
-                     'nltk_sim_sen', 'percent_adj', 'submission_len', 'title_len', 'time_between_messages',
-                     'time_until_first_comment', 'time_between_comment_first_comment',
-                     'submmiter_commenter_tfidf_cos_sim']
+                     'time_ratio', 'comment_len', 'submission_len', 'title_len', 'time_between_messages',
+                     'time_until_first_comment', 'time_between_comment_first_comment', 'comment_depth',
+                     'nltk_com_sen_pos', 'nltk_com_sen_neg', 'nltk_com_sen_neutral',
+                     'nltk_sub_sen_pos', 'nltk_sub_sen_neg', 'nltk_sub_sen_neutral', 'nltk_title_sen_pos',
+                     'nltk_title_sen_neg', 'nltk_title_sen_neutral', 'nltk_sim_sen', 'percent_adj',
+                     'topic_model_0', 'topic_model_1', 'topic_model_2', 'topic_model_3', 'topic_model_4',
+                     'topic_model_5', 'topic_model_6', 'topic_model_7', 'topic_model_8', 'topic_model_9',
+                     'topic_model_10', 'topic_model_11', 'topic_model_12', 'topic_model_13', 'topic_model_14']
+
     imbalnce_obj = Imbalance(features_data, treatment_column_name, matched_column_name, variable_name, treatments)
     imbalnce_obj.imbalance()
