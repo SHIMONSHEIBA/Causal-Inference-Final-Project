@@ -100,33 +100,20 @@ class Classifier:
             if number_sample_group < sample_per_group:
                 self.featuresDF.set_value(index, 'group_number', i)
                 number_sample_group += 1
-                last_comment_author = row['comment_author']
             else:
-                if last_comment_author != row['comment_author']:
-                    i += 1
-                    self.featuresDF.set_value(index, 'group_number', i)
-                    print('{}: finish split samples for group number {} with {} samples'.
-                          format((time.asctime(time.localtime(time.time()))), i-1, number_sample_group))
-                    print('{}: start split samples for group number {}'.
-                          format((time.asctime(time.localtime(time.time()))), i))
-                    logging.info('{}: finish split samples for group number {} with {} samples'.
-                                 format((time.asctime(time.localtime(time.time()))), i-1, number_sample_group))
-                    logging.info('{}: start split samples for group number {}'.
-                                 format((time.asctime(time.localtime(time.time()))), i))
-                    last_comment_author = row['comment_author']
-                    number_sample_group = 1
-                else:
-                    self.featuresDF.set_value(index, 'group_number', i)
-                    number_sample_group += 1
-                    last_comment_author = row['comment_author']
-                    print('{}: {} group is larger, number of samples is: {}'.
-                          format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
-        print('{}: finish split samples for group number {} with {} samples'.
-              format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
-        logging.info('{}: finish split samples for group number {} with {} samples'.
-                     format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
+                i += 1
+                self.featuresDF.set_value(index, 'group_number', i)
+                print('{}: finish split samples for group number {} with {} samples'.
+                      format((time.asctime(time.localtime(time.time()))), i-1, number_sample_group))
+                print('{}: start split samples for group number {}'.
+                      format((time.asctime(time.localtime(time.time()))), i))
+                logging.info('{}: finish split samples for group number {} with {} samples'.
+                             format((time.asctime(time.localtime(time.time()))), i-1, number_sample_group))
+                logging.info('{}: start split samples for group number {}'.
+                             format((time.asctime(time.localtime(time.time()))), i))
+                number_sample_group = 1
         opts.k_fold = i + 1
-        self.labels = self.featuresDF[['IsEfficient', 'group_number']]
+        self.labels = self.featuresDF[['delta', 'group_number']]
         print('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
         logging.info('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
 

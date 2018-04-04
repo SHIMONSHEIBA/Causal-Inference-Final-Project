@@ -9,7 +9,7 @@ import time
 
 
 base_directory = os.path.abspath(os.curdir)
-data_directory = os.path.join(base_directory, "change my view")
+data_directory = os.path.join(base_directory, "importing_change_my_view")
 
 
 class TopicModel:
@@ -68,7 +68,7 @@ class TopicModel:
 
 
 def main():
-    number_of_topics = 10
+    number_of_topics = 15
     print('{}: Loading the data'.format((time.asctime(time.localtime(time.time())))))
     topic_model_obj = TopicModel(number_of_topics)
     print('{}: Finish loading the data'.format((time.asctime(time.localtime(time.time())))))

@@ -171,8 +171,8 @@ def main():
         data = join_result
         units = join_result
     else:
-        data = pd.read_csv(os.path.join(results_directory, 'all_data.csv'))
-        units = pd.read_csv(os.path.join(results_directory, 'units.csv'))
+        data = pd.read_csv(os.path.join(results_directory, 'all_data_0304.csv'))
+        units = pd.read_csv(os.path.join(results_directory, 'units_0304.csv'))
         submissions = pd.read_csv(os.path.join(results_directory, 'all submissions.csv'))
         submissions_drop = submissions.drop_duplicates(subset='submission_id', keep="last")
 
