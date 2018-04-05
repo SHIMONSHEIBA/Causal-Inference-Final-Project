@@ -13,15 +13,18 @@ class Matching:
 
         self.base_directory = os.path.abspath(os.curdir)
         self.data = pd.DataFrame()
+        self.data.assign(matched='')
 
         return
 
-    def load_prepare_data(self, treatments_list, treatment_column,sub_directory, data_name, prepare = False):
+    def load_prepare_data(self, treatments_list, treatment_column, sub_directory, data_name, prepare=False):
         """
         This method loads the data and prepares binary columns for each value of the treatment feature
         :param treatments_list: all possible values of treatment feature
         :param treatment_column: name of treatment column in data
         :param data_name: data file name
+        :param sub_directory
+        :param prepare
         :return:
         """
         data = os.path.join(self.base_directory, sub_directory, data_name)
@@ -36,7 +39,7 @@ class Matching:
                 #print('number of treatments for: {}, is: treat: {}, non treat')
         return
 
-    def matching(self,K, label, propensity, calipher=0.05, replace=True):
+    def matching(self, K, label, propensity, calipher=0.05, replace=True):
         """ Performs nearest-neighbour matching for a sample of test and control
         observations, based on the propensity scores for each observation.
 
@@ -78,7 +81,6 @@ class Matching:
                 print("{} :finish matching for {}".format(time.asctime(time.localtime(time.time())), iteration))
         return matches
 
-
     def matching_to_dataframe(self, match, covariates, remove_duplicates=False):
         """ Converts a list of matches obtained from matching() to a DataFrame.
         Duplicate rows are controls that where matched multiple times.
@@ -94,12 +96,17 @@ class Matching:
         control = [ctrl for matched_list in match.values() for ctrl in matched_list]
 
         result = pd.concat([covariates.loc[treated], covariates.loc[control]])
+        result_ids = list(set(result['comment_id']))
+        self.data.loc[self.data['comment_id'].isin(result_ids), 'matched'] = 1
+        self.data.loc[~self.data['comment_id'].isin(result_ids), 'matched'] = 0
+        # add all deltas to data
+        self.data.loc[self.data['delta'] == 1, 'matched'] = 1
 
         if remove_duplicates:
-            return result.groupby(result.index).first()
+            return self.data.loc[self.data["matched"] == 1]
         else:
-            return result
 
+            return result
 
     def trim_common_support(self, data, label_name, propensity_column_name):
         """ Removes observations that fall outside the common support of the propensity score
@@ -146,8 +153,10 @@ class Matching:
 def main():
 
     matching = Matching()
-    treatments_list = [['treated','final_df_CMV.csv','propensity']]
-    sub_directory = 'importing_change_my_view'
+    treatments_list = [['treated', 'CMV_propensity_score_treated.csv', 'propensity_score_treated_logistic']]
+    sub_directory = 'propensity_score_results'
+    base_directory = os.path.abspath(os.curdir)
+    data_directory = os.path.join(base_directory, "change my view")
     prepare_data = False
     K = 3
 
@@ -163,25 +172,24 @@ def main():
         common_support = matching.trim_common_support(matching.data, treatment_column, propensity_column_name)
 
         control = (common_support[treatment_column] == 0)
-        print('after tream size of control for {} is {}'.format(treatment_column,control.sum()))
+        print('after tream size of control for {} is {}'.format(treatment_column, control.sum()))
         treated = (common_support[treatment_column] == 1)
         print('after tream size of treated for {} is {}'.format(treatment_column, treated.sum()))
 
         matches = matching.matching(K, label=common_support[treatment_column],
-                       propensity=common_support[propensity_column_name],
-                       calipher=0.09,
-                       replace=True)
+                                    propensity=common_support[propensity_column_name], calipher=0.09, replace=True)
 
         # print('check if everybody got a match returns : {}'.format(sum([True if match == []
         #                                                                 else False for match in matches]) == 0))
 
         # return to df with all covariates
-        matches_data_frame = matching.matching_to_dataframe(match=matches,
-                                                   covariates=common_support,
-                                                   remove_duplicates=True)
+        matches_data_frame = matching.matching_to_dataframe(match=matches, covariates=common_support,
+                                                            remove_duplicates=True)
         # save matched df
-        print('matched data size for {} is {}'.format(treatment_column,matches_data_frame.shape))
-        matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'.csv')
+        print('matched data size for {} is {}'.format(treatment_column, matches_data_frame.shape))
+        matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'_all_deltas.csv')
+        matching.data.to_csv(os.path.join(data_directory, 'CMV_matched_data_all_deltas.csv'))
+
 
 if __name__ == '__main__':
     main()

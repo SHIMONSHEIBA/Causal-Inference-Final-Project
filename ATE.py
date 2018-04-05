@@ -41,10 +41,11 @@ class Ate:
 
         return covariate_adjustment
 
+
 def main():
 
     log_model = LogisticRegression()
-    treatments_list = [['treated','features_CMV.csv']]
+    treatments_list = [['treated', 'features_CMV.csv']]
     sub_directory = 'importing_change_my_view'
     for treats in treatments_list:
         treatment_column = treats[0]
