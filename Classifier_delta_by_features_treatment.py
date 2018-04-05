@@ -21,7 +21,7 @@ import math
 base_directory = os.path.abspath(os.curdir)
 logs_directory = os.path.join(base_directory, 'logs')
 results_directory = os.path.join(base_directory, 'choose_model_results')
-features_directory = os.path.join(base_directory, 'features_results')
+features_directory = os.path.join(base_directory, 'change my view')
 LOG_FILENAME = os.path.join(logs_directory, datetime.now().strftime('LogFile_causality_data_%d%m%Y%H%M.log'))
 logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO,)
 
@@ -60,42 +60,48 @@ class Classifier:
         self.feature_names = None
         print('{}: Loading the data: final_features_causality'.format((time.asctime(time.localtime(time.time())))))
         self.labels = None
-        self.featuresDF = pd.read_excel(os.path.join(features_directory, 'final_features_causality_pos.xlsx'))
+        self.featuresDF = pd.read_csv(os.path.join(features_directory,
+                                                   'matches_data_frame_treated_propensity_score_treated_logistic.csv'))
 
-        self.group_dic = {0: [['submission_author_number_original_subreddit'],
-                              'submission_author_number_original_subreddit'],
-                          1: [['submission_author_number_recommend_subreddit'],
-                              'submission_author_number_recommend_subreddit'],
-                          2: [['submission_created_time_hour'], 'submission_created_time_hour'],
-                          3: [['cosine_similarity_subreddits_list'], 'cosine_similarity_subreddits_list'],
-                          4: [['comment_submission_similarity'], 'comment_submission_similarity'],
-                          5: [['comment_title_similarity'], 'comment_title_similarity'],
-                          6: [['comment_author_number_original_subreddit'], 'comment_author_number_original_subreddit'],
-                          7: [['comment_author_number_recommend_subreddit'], 'comment_author_number_recommend_subreddit'],
-                          8: [['number_of_references_comment_author'], 'number_of_references_comment_author'],
-                          9: [['comment_created_time_hour'], 'comment_created_time_hour'],
-                          10: [['time_between_messages'], 'time_between_messages'],
-                          11: [['comment_len'], 'comment_len'],
-                          12: [['number_of_r'], 'number_of_r'],
-                          13: [['number_of_references_to_submission'], 'number_of_references_to_submission'],
-                          14: [['number_of_references_to_recommended_subreddit'],
-                               'number_of_references_to_recommended_subreddit'],
-                          15: [['subreddits_similarity'], 'subreddits_similarity'],
-                          16: [['treated'], 'treated'],
-                          17: [['percent_efficient_references_comment_author'],
-                               'percent_efficient_references_comment_author']
-                          }
+        # group_dict is in the format: {index: [features list of this group], group name
+        self.group_dict = {0: [['commenter_number_submission', 'commenter_number_comment',
+                               'number_of_comments_in_tree_by_comment_user', 'commenter_seniority_days'],
+                               'commenter_features'],
+                           1: [['submitter_number_submission', 'submitter_seniority_days', 'submitter_number_comment',
+                               'number_of_comments_in_tree_from_submitter', 'number_of_respond_by_submitter_total',
+                                'number_of_respond_by_submitter'], 'submitter_features'],
+                           2: [['is_first_comment_in_tree', 'comment_len',  'comment_depth'], 'comment_features'],
+                           3: [['time_ratio', 'time_between_messages', 'time_until_first_comment',
+                               'time_between_comment_first_comment'], 'time_features'],
+                           4: [['submission_len', 'title_len'], 'submission_features'],
+                           5: [['respond_to_comment_user_responses_ratio', 'respond_to_comment_user_all_ratio',
+                               'respond_total_ratio'], 'ratio_features'],
+                           6: [['treated'], 'trated'],
+                           7: [['nltk_com_sen_pos', 'nltk_com_sen_neg', 'nltk_com_sen_neutral', 'nltk_sub_sen_pos',
+                               'nltk_sub_sen_neg', 'nltk_sub_sen_neutral', 'nltk_title_sen_pos', 'nltk_title_sen_neg',
+                                'nltk_title_sen_neutral', 'nltk_sim_sen'], 'sentiment features'],
+                           8: [['percent_adj'], 'percent_adj'],
+                           9: [['submmiter_commenter_tfidf_cos_sim'], 'submitted_commenter_similarity'],
+                           10: [['topic_model_0', 'topic_model_1', 'topic_model_2', 'topic_model_3', 'topic_model_4',
+                                'topic_model_5', 'topic_model_6', 'topic_model_7', 'topic_model_8', 'topic_model_9',
+                                 'topic_model_10', 'topic_model_11', 'topic_model_12', 'topic_model_13',
+                                 'topic_model_14'], 'topic_model']
+                           }
 
         print('{}: Data loaded '.format((time.asctime(time.localtime(time.time())))))
         return
 
 ###############################################################################
     def split_relevant_data(self):
+        """
+        This function split the data to opts.k_fold folders and insert the group number to the DF
+        :return:
+        """
         # Split the data to k=15 groups, each comment_author in one group only
         i = 0
         number_sample_group = 0
         sample_per_group = math.floor(self.featuresDF.shape[0] / opts.k_fold)
-        last_comment_author = ''
+        self.featuresDF = self.featuresDF.sample(frac=1).reset_index(drop=True)
         for index, row in self.featuresDF.iterrows():
             if number_sample_group < sample_per_group:
                 self.featuresDF.set_value(index, 'group_number', i)
@@ -120,32 +126,40 @@ class Classifier:
 
 ###############################################################################
     def create_data_no_feature_selection(self):
-        selected_features = list(self.group_dic.keys())
-        features_group = [self.group_dic[group][0] for group in selected_features]
+        """
+        This function create the data for the models if not using feature selection
+        :return:
+        """
+        selected_features = list(self.group_dict.keys())
+        features_group = [self.group_dict[group][0] for group in selected_features]
         self.features = [item for sublist in features_group for item in sublist]
         features = [item for sublist in features_group for item in sublist]
         features.append('group_number')
         self.X_train = self.featuresDF[features]
-        features_names = [self.group_dic[feature][1] for feature in selected_features]
+        features_names = [self.group_dict[feature][1] for feature in selected_features]
         print('{}: Start training with the groups: {}'.format((time.asctime(time.localtime(time.time()))),
                                                               features_names))
         logging.info('{}: Start training with the groups: {}'
                      .format((time.asctime(time.localtime(time.time()))), features_names))
-        group_results = self.ModelsIteration()
+        group_results = self.models_iteration()
 
         for model in group_results:
             model.append(features_names)
             model.append(opts.k_fold)
         columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold']
-        group_resultsDF = pd.DataFrame(group_results, columns=columns_names)
+        group_results_df = pd.DataFrame(group_results, columns=columns_names)
 
-        return group_resultsDF
+        return group_results_df
 
-    def iterateOverFeaturesGroups(self):
+    def iterate_over_features_groups(self):
+        """
+        This function create the data for the models if using feature selection
+        :return:
+        """
         all_groups_results = pd.DataFrame()
-        remaining_features = list(self.group_dic.keys())
+        remaining_features = list(self.group_dict.keys())
         if opts.is_backward:  # use backward elimination or none of them
-            selected_features = list(self.group_dic.keys())
+            selected_features = list(self.group_dict.keys())
         else:  # use forward selection
             selected_features = []
             remaining_features = [x for x in remaining_features if x not in selected_features]
@@ -155,30 +169,30 @@ class Classifier:
             auc_with_candidates = list()
             for candidate in remaining_features:
                 if opts.is_backward:  # use backward elimination
-                    features_group = [self.group_dic[group][0] for group in selected_features]
-                    features_group.remove(self.group_dic[candidate][0])
+                    features_group = [self.group_dict[group][0] for group in selected_features]
+                    features_group.remove(self.group_dict[candidate][0])
                     self.features = [item for sublist in features_group for item in sublist]
                     features = [item for sublist in features_group for item in sublist]
                     features.append('group_number')
                     self.X_train = self.featuresDF[features]
-                    features_names = [self.group_dic[feature][1] for feature in selected_features]
-                    features_names.remove(self.group_dic[candidate][1])
+                    features_names = [self.group_dict[feature][1] for feature in selected_features]
+                    features_names.remove(self.group_dict[candidate][1])
 
                 else:  # use forward selection
-                    features_group = [self.group_dic[group][0] for group in selected_features] +\
-                                     [self.group_dic[candidate][0]]
+                    features_group = [self.group_dict[group][0] for group in selected_features] + \
+                                     [self.group_dict[candidate][0]]
                     self.features = [item for sublist in features_group for item in sublist]
                     features = [item for sublist in features_group for item in sublist]
                     features.append('group_number')
                     self.X_train = self.featuresDF[features]
-                    features_names = [self.group_dic[feature][1] for feature in selected_features] +\
-                                     [self.group_dic[candidate][1]]
+                    features_names = [self.group_dict[feature][1] for feature in selected_features] + \
+                                     [self.group_dict[candidate][1]]
 
                 print('{}: Start training with the groups: {} '.format((time.asctime(time.localtime(time.time()))),
                                                                        features_names))
                 logging.info('{}: Start training with the groups: {} '
                              .format((time.asctime(time.localtime(time.time()))), features_names))
-                group_results = self.ModelsIteration()
+                group_results = self.models_iteration()
                 best_auc = max(result[2] for result in group_results)
                 auc_with_candidates.append((best_auc, candidate))
 
@@ -191,9 +205,9 @@ class Classifier:
                     model.append(features_names)
                     model.append(opts.k_fold)
                 columns_names = ['classifier_name', 'score', 'auc', 'train_time', 'features_list', 'k_fold']
-                group_resultsDF = pd.DataFrame(group_results, columns=columns_names)
+                group_results_df = pd.DataFrame(group_results, columns=columns_names)
                 # group_results.append(group_names).append([opts.k_fold])
-                all_groups_results = all_groups_results.append(group_resultsDF, ignore_index=True)
+                all_groups_results = all_groups_results.append(group_results_df, ignore_index=True)
                 all_groups_results.to_csv('test_results_stepwise.csv', encoding='utf-8')
 
             auc_with_candidates.sort()
@@ -215,7 +229,7 @@ class Classifier:
             # one candidate can be chosen, if not- we go forward to the next step.
             remain_number_of_candidate -= 1
 
-        selected_features_names = [self.group_dic[feature][1] for feature in selected_features]
+        selected_features_names = [self.group_dict[feature][1] for feature in selected_features]
         logging.info('{}: Selected features are: {} and the best AUC is: {}'.
                      format((time.asctime(time.localtime(time.time()))), selected_features_names, best_new_auc))
         print('{}: Selected features for are: {} and the best AUC is: {}.'.
@@ -227,6 +241,13 @@ class Classifier:
 ###############################################################################
 # benchmark classifiers
     def benchmark(self, clf, clf_name='default'):
+        """
+        This function train and test the model (clf) opts.k_fold time with CV
+        :param clf: the model to train and test
+        :param str clf_name: the name of the model
+        :return: clf_name, average_acc, average_auc, train_time of the model
+        :rtype list
+        """
         print('_' * 80)
         print('{}: Traininig: {}'.format((time.asctime(time.localtime(time.time()))), clf))
         logging.info('_' * 80)
@@ -279,7 +300,11 @@ class Classifier:
 
         return [clf_name, average_acc, average_auc, train_time]
 
-    def ModelsIteration(self):
+    def models_iteration(self):
+        """
+        This function iterate over model and call benchmark for each of them
+        :return: list of lists with the results for each model
+        """
         results = []
         for clf, name in (
                 (RidgeClassifier(tol=1e-2, solver="sag"), "Ridge Classifier"),
@@ -341,8 +366,8 @@ if __name__ == '__main__':
     classifier = Classifier()
     classifier.split_relevant_data()
     if opts.is_backward_forward:
-        classifier_results = classifier.iterateOverFeaturesGroups()
+        classifier_results = classifier.iterate_over_features_groups()
     else:
         classifier_results = classifier.create_data_no_feature_selection()
 
-    classifier_results.to_csv(os.path.join(results_directory, 'classifier_results.csv'), encoding='utf-8')
+    classifier_results.to_csv(os.path.join(results_directory, 'CMV_classifier_results.csv'), encoding='utf-8')

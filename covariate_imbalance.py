@@ -52,8 +52,8 @@ class Imbalance:
         for treat in self.treatments_list:
             self.treatment[treat] = data.loc[data[treatment_column] == treat]
             self.control[treat] = data.loc[data[treatment_column] != treat]
-            self.treatment_matched[treat] = data.loc[data[treatment_column] == treat & data[matched_column] == 'True']
-            self.control_matched[treat] = data.loc[data[treatment_column] != treat & data[matched_column] == 'True']
+            self.treatment_matched[treat] = data.loc[(data[treatment_column] == treat) & (data[matched_column] == 1.0)]
+            self.control_matched[treat] = data.loc[(data[treatment_column] != treat) & (data[matched_column] == 1.0)]
             self.total_imbalance_unmatched[treat] = 0
             self.total_imbalance_matched[treat] = 0
 
@@ -111,44 +111,46 @@ class Imbalance:
                     self.results[treat][v]['matched log ratio'] = matched_log_ratio
                     self.results[treat][v]['matched difference'] = matched_diff
                     self.results[treat][v]['matched p-value'] = stats.ttest_ind(treated_matched, control_matched)[1]
-                    self.results[treat][v]['% reduction in imbalance'] = (unmatched_diff / matched_diff - 1) * 100
+                    self.results[treat][v]['% reduction in imbalance'] =\
+                        (abs(unmatched_diff) / abs(matched_diff) - 1) * 100
 
             # calculate the imbalance for all covariates
             self.total_imbalance_unmatched[treat] /= len(self.variable_names)
-            self.results[treat]['total_' + treat] = {'unmatched difference': self.total_imbalance_unmatched[treat]}
+            self.results[treat]['total_' + str(treat)] = {'unmatched difference': self.total_imbalance_unmatched[treat]}
 
             if with_match:
                 self.total_imbalance_matched[treat] /= len(self.variable_names)
-                self.results[treat]['total_' + treat]['matched difference'] = self.total_imbalance_matched[treat]
-                self.results[treat]['total_' + treat]['% reduction in imbalance'] =\
-                    (self.total_imbalance_unmatched[treat] / self.total_imbalance_matched[treat] - 1) * 100
+                self.results[treat]['total_' + str(treat)]['matched difference'] = self.total_imbalance_matched[treat]
+                self.results[treat]['total_' + str(treat)]['% reduction in imbalance'] =\
+                    (abs(self.total_imbalance_unmatched[treat]) / abs(self.total_imbalance_matched[treat]) - 1) * 100
 
             # create total for treat 1
             results_df = pd.DataFrame.from_dict(self.results[treat], orient='index')
-            results_df.to_csv(os.path.join(imbalance_directory, 'CMV_treat_' + treat + '_results.csv'))
+            results_df.to_csv(os.path.join(imbalance_directory, 'CMV_treat_' + str(treat) + '_results.csv'))
 
         return
 
 
 if __name__ == '__main__':
-    features_data = pd.read_csv(os.path.join(features_directory, 'final_df_CMV.csv'))
+    features_data = pd.read_csv(os.path.join(features_directory, 'CMV_matched_data.csv'))
     treatments = [1]
     treatment_column_name = 'treated'
     matched_column_name = 'matched'
     variable_name = ['commenter_number_submission', 'submitter_number_submission',
-                     'number_of_comments_in_tree_from_submitter', 'number_of_respond_by_submitter_total',
-                     'respond_to_comment_user_responses_ratio', 'submitter_seniority_days', 'is_first_comment_in_tree',
+                     'submitter_seniority_days', 'is_first_comment_in_tree',
                      'commenter_number_comment', 'submitter_number_comment',
-                     'number_of_comments_in_tree_by_comment_user', 'number_of_respond_by_submitter',
-                     'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'commenter_seniority_days',
+                     'number_of_comments_in_tree_by_comment_user', 'commenter_seniority_days',
                      'time_ratio', 'comment_len', 'submission_len', 'title_len', 'time_between_messages',
                      'time_until_first_comment', 'time_between_comment_first_comment', 'comment_depth',
-                     'nltk_com_sen_pos', 'nltk_com_sen_neg', 'nltk_com_sen_neutral',
-                     'nltk_sub_sen_pos', 'nltk_sub_sen_neg', 'nltk_sub_sen_neutral', 'nltk_title_sen_pos',
-                     'nltk_title_sen_neg', 'nltk_title_sen_neutral', 'nltk_sim_sen', 'percent_adj',
+                     'number_of_comments_in_tree_from_submitter', 'number_of_respond_by_submitter_total',
+                     'respond_to_comment_user_responses_ratio', 'number_of_respond_by_submitter',
+                     'respond_to_comment_user_all_ratio', 'respond_total_ratio', 'treated', 'nltk_com_sen_pos',
+                     'nltk_com_sen_neg', 'nltk_com_sen_neutral', 'nltk_sub_sen_pos', 'nltk_sub_sen_neg',
+                     'nltk_sub_sen_neutral', 'nltk_title_sen_pos', 'nltk_title_sen_neg', 'nltk_title_sen_neutral',
+                     'nltk_sim_sen', 'percent_adj', 'submmiter_commenter_tfidf_cos_sim',
                      'topic_model_0', 'topic_model_1', 'topic_model_2', 'topic_model_3', 'topic_model_4',
                      'topic_model_5', 'topic_model_6', 'topic_model_7', 'topic_model_8', 'topic_model_9',
                      'topic_model_10', 'topic_model_11', 'topic_model_12', 'topic_model_13', 'topic_model_14']
 
     imbalnce_obj = Imbalance(features_data, treatment_column_name, matched_column_name, variable_name, treatments)
-    imbalnce_obj.imbalance()
+    imbalnce_obj.imbalance(with_match=True)

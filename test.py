@@ -5,7 +5,7 @@
 # import re
 # # common_support_check = False
 # import csv
-# import os
+import os
 # import CreateFeatures
 # from sklearn.feature_extraction.text import TfidfVectorizer
 # import csv
@@ -388,70 +388,78 @@ from gensim.models import LdaModel
 # # sim = cosine_similarity(sentiment_1, sentiment_2)
 # # print(sim)
 #
-stop = set(stopwords.words('english'))
-exclude = set(string.punctuation)
-lemma = WordNetLemmatizer()
-
-
-def clean(doc):
-    text = doc.lstrip('b').strip('"').strip("'").strip(">")
-    stop_free = " ".join([i for i in text.lower().split() if i not in stop])
-    punc_free = "".join(ch for ch in stop_free if ch not in exclude)
-    # stemming = " ".join(ps.stem(word) for word in punc_free.split())
-    normalized = " ".join(lemma.lemmatize(word) for word in punc_free.split())
-    return normalized
-
-
-text_list = ['football is a great sport, it has balls and sport for everyone',
-             'sport is great, there are sport and football',
-             'sport is great, we eat a lot of sugar and food and resturant',
-             'sugar is fun, we eat there a lot of food and sugar and sport',
-             'sugar is sweet, I love eat it, it is my favorite food and bread and resturant',
-             'sugar is biter, I love eat it, it is my favorite food and resturant']
-
-import os
-base_directory = os.path.abspath(os.curdir)
-data_directory = os.path.join(base_directory, "change my view")
-
-units = pd.read_excel(os.path.join(data_directory, 'small_data.xlsx'))
-
-# doc_clean = {index: clean(doc).split() for index, doc in enumerate(text_list)}
-comments_clean = {row['comment_id']: clean(row['comment_body']).split() for index, row in units.iterrows()}
-# Creating the term dictionary of our corpus, where every unique term is assigned an index.
-dictionary = corpora.Dictionary(comments_clean.values())
-
-# Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
-comment_term_matrix = {index: dictionary.doc2bow(doc) for index, doc in comments_clean.items()}
-
-# Creating the object for LDA model using gensim library
-Lda = gensim.models.ldamodel.LdaModel
-# model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
-model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
-model = model.fit(comment_term_matrix.values())
-# Running and Trainign LDA model on the document term matrix.
-result = model.transform(list(comment_term_matrix.values()))
-print(result)
-
-# result = model[doc_term_matrix[0]]
-# print(result)
-
+# stop = set(stopwords.words('english'))
+# exclude = set(string.punctuation)
+# lemma = WordNetLemmatizer()
 #
+#
+# def clean(doc):
+#     text = doc.lstrip('b').strip('"').strip("'").strip(">")
+#     stop_free = " ".join([i for i in text.lower().split() if i not in stop])
+#     punc_free = "".join(ch for ch in stop_free if ch not in exclude)
+#     # stemming = " ".join(ps.stem(word) for word in punc_free.split())
+#     normalized = " ".join(lemma.lemmatize(word) for word in punc_free.split())
+#     return normalized
+#
+#
+# text_list = ['football is a great sport, it has balls and sport for everyone',
+#              'sport is great, there are sport and football',
+#              'sport is great, we eat a lot of sugar and food and resturant',
+#              'sugar is fun, we eat there a lot of food and sugar and sport',
+#              'sugar is sweet, I love eat it, it is my favorite food and bread and resturant',
+#              'sugar is biter, I love eat it, it is my favorite food and resturant']
+#
+# import os
+# base_directory = os.path.abspath(os.curdir)
+# data_directory = os.path.join(base_directory, "change my view")
+#
+# units = pd.read_excel(os.path.join(data_directory, 'small_data.xlsx'))
+#
+# # doc_clean = {index: clean(doc).split() for index, doc in enumerate(text_list)}
+# comments_clean = {row['comment_id']: clean(row['comment_body']).split() for index, row in units.iterrows()}
+# # Creating the term dictionary of our corpus, where every unique term is assigned an index.
+# dictionary = corpora.Dictionary(comments_clean.values())
+#
+# # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
+# comment_term_matrix = {index: dictionary.doc2bow(doc) for index, doc in comments_clean.items()}
+#
+# # Creating the object for LDA model using gensim library
+# Lda = gensim.models.ldamodel.LdaModel
+# # model = Lda(doc_term_matrix, num_topics=3, id2word=dictionary, passes=50, eta=0.1)
+# model = ldamodel.LdaTransformer(num_topics=3, id2word=dictionary, passes=50, minimum_probability=0)
+# model = model.fit(comment_term_matrix.values())
+# # Running and Trainign LDA model on the document term matrix.
+# result = model.transform(list(comment_term_matrix.values()))
+# print(result)
+#
+# # result = model[doc_term_matrix[0]]
+# # print(result)
+#
+# #
+#
+# import pandas as pd
+#
+# check = pd.DataFrame({'one': pd.Series([1., 2., 3., 4.], index=['a', 'b', 'c', 'd']),
+#                       'two': pd.Series([1., 2., 3., 4.], index=['a', 'b', 'c', 'd'])})
+#
+# df_empty = pd.DataFrame()
+# start_time = time.time()
+# print(int(check.empty))
+# # print(int(df_empty.empty))
+# empty_time = time.time()
+# print('time for empty: ', empty_time - start_time)
+# if check.empty:
+#     print(1)
+# else:
+#     print(0)
+#
+# empty_time1 = time.time()
+# print('time for empty: ', empty_time1 - empty_time)
 
-import pandas as pd
 
-check = pd.DataFrame({'one': pd.Series([1., 2., 3., 4.], index=['a', 'b', 'c', 'd']),
-                      'two': pd.Series([1., 2., 3., 4.], index=['a', 'b', 'c', 'd'])})
+base_directory = os.path.abspath(os.curdir)
+data_directory = os.path.join(base_directory, 'change my view')
+check = pd.read_csv(os.path.join(data_directory, 'final_df_CMV_after_fix.csv'), encoding='utf-8')
+print(check.min())
 
-df_empty = pd.DataFrame()
-start_time = time.time()
-print(int(check.empty))
-# print(int(df_empty.empty))
-empty_time = time.time()
-print('time for empty: ', empty_time - start_time)
-if check.empty:
-    print(1)
-else:
-    print(0)
-
-empty_time1 = time.time()
-print('time for empty: ', empty_time1 - empty_time)
+reut = 1
