@@ -4,6 +4,7 @@ This module contains a class to ensure that there is overlap between treatment a
 import numpy as np
 import pandas as pd
 import os
+import time
 
 
 class Matching:
@@ -25,7 +26,7 @@ class Matching:
         """
         data = os.path.join(self.base_directory, sub_directory, data_name)
         if data_name[-3:] == 'csv':
-            self.data.from_csv(data)
+            self.data = self.data.from_csv(data)
         else:
             self.data = pd.read_excel(data)
 
@@ -35,7 +36,7 @@ class Matching:
                 #print('number of treatments for: {}, is: treat: {}, non treat')
         return
 
-    def matching(self, label, propensity, calipher=0.05, replace=True):
+    def matching(self,K, label, propensity, calipher=0.05, replace=True):
         """ Performs nearest-neighbour matching for a sample of test and control
         observations, based on the propensity scores for each observation.
 
@@ -53,21 +54,28 @@ class Matching:
         # Randomly permute in case of sampling without replacement to remove any bias arising from the
         # ordering of the data set
         matching_order = np.random.permutation(label[label == 1].index)
-        matches = {}
-
+        matches = dict()
+        iteration = 0
         for obs in matching_order:
             # Compute the distance between the treatment observation and all candidate controls in terms of
             # propensity score
+            iteration += 1
             distance = abs(treated[obs] - control)
 
             # Take the closest match
-            if distance.min() <= calipher or not calipher:
-                matches[obs] = [distance.argmin()]
+            K_neighbors = list()
+            k_nearest_indexes = distance.nsmallest(K).keys().tolist()
+            for idx in k_nearest_indexes:
+                if distance[idx] <= calipher or not calipher:
+                    K_neighbors.append(idx)
+            matches[obs] = K_neighbors
 
-                # Remove the matched control from the set of candidate controls in case of sampling without replacement
-                if not replace:
-                    control = control.drop(matches[obs])
-
+            # Remove the matched control from the set of candidate controls in case of sampling without replacement
+            if not replace:
+                for matched_control in K_neighbors:
+                    control = control.drop(matched_control)
+            if iteration % 100 == 0:
+                print("{} :finish matching for {}".format(time.asctime(time.localtime(time.time())), iteration))
         return matches
 
 
@@ -138,9 +146,10 @@ class Matching:
 def main():
 
     matching = Matching()
-    treatments_list = [['treated','features_CMV.csv','propensity']]
+    treatments_list = [['treated','final_df_CMV.csv','propensity']]
     sub_directory = 'importing_change_my_view'
     prepare_data = False
+    K = 3
 
     for treats in treatments_list:
         treatment_column = treats[0]
@@ -158,18 +167,18 @@ def main():
         treated = (common_support[treatment_column] == 1)
         print('after tream size of treated for {} is {}'.format(treatment_column, treated.sum()))
 
-        matches = matching.matching(label=common_support[treatment_column],
+        matches = matching.matching(K, label=common_support[treatment_column],
                        propensity=common_support[propensity_column_name],
                        calipher=0.09,
-                       replace=False)
+                       replace=True)
 
-        print('check if everybody got a match returns : {}'.format(sum([True if match == []
-                                                                        else False for match in matches]) == 0))
+        # print('check if everybody got a match returns : {}'.format(sum([True if match == []
+        #                                                                 else False for match in matches]) == 0))
 
         # return to df with all covariates
         matches_data_frame = matching.matching_to_dataframe(match=matches,
                                                    covariates=common_support,
-                                                   remove_duplicates=False)
+                                                   remove_duplicates=True)
         # save matched df
         print('matched data size for {} is {}'.format(treatment_column,matches_data_frame.shape))
         matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'.csv')
