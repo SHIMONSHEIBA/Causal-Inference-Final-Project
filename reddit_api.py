@@ -8,6 +8,8 @@ from datetime import datetime
 import pandas as pd
 from collections import defaultdict
 import re
+from copy import copy
+import numpy as np
 
 # configurate logging
 base_directory = os.path.abspath(os.curdir)
@@ -157,7 +159,7 @@ class ApiConnection:
 
         delta_comments_depth_zero = pd.DataFrame(columns=['comment_id','parent_id'])
         OP_deltas_comments_ids = defaultdict(list)
-        delta_tokens = ['&amp;#8710;', '&#8710;', '&#916;', '&amp;916;','∆','!delta', 'Δ','&delta;']
+        delta_tokens = ['&amp;#8710;','&#8710;','&#916;','&amp;916;','∆','!delta', 'Δ','&delta;']
         num_of_deltas = 0
         OP_deltas = defaultdict(dict)
 
@@ -179,14 +181,23 @@ class ApiConnection:
                 # check that OP is not giving a delta to himself or to the deltabot
                 parent_id = row.loc['parent_id']
                 parent_id = parent_id.replace("b't1_", "").replace("'", "")
-                delta_comment = all_submissions_comments[all_submissions_comments["comment_id"]
+                delta_comment = all_submissions_comments.loc[all_submissions_comments["comment_id"]
                                                              .str.lstrip("b").str.strip("'") == parent_id]
-                # print("parent_id is : {}".format(parent_id))
-                print("index is ",index)
-                if (delta_comment.iloc[0]['comment_is_submitter'] == False) and \
-                        (delta_comment.iloc[0]['comment_author'] != "DeltaBot"):
+
+                # if comment of parent_id is not in data
+                if delta_comment.empty:
+                    continue
+
+                check_delta = copy(delta_comment.loc[delta_comment['comment_is_submitter'] == True])
+
+                if not check_delta.empty:
+                    print("bug")
+
+                real_delta = copy(delta_comment.loc[(delta_comment['comment_is_submitter'] == False)
+                                  & (delta_comment['comment_author'] != "DeltaBot")])
+                if not real_delta.empty:
                     num_of_deltas += 1
-                    if num_of_deltas%100 ==0:
+                    if num_of_deltas % 100 == 0:
                         print("{} deltas".format(num_of_deltas))
                     OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
                     OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
@@ -383,35 +394,27 @@ def main():
     # create class instance
     connect = ApiConnection(subreddit)
 
-    # get submissions of sub reddit
-    # subids = connect.get_submissions()
+    #get submissions of sub reddit
+    subids = connect.get_submissions()
 
-    # # get comments of submissions
-    # connect.parse_comments(subids)
+    # get comments of submissions
+    connect.parse_comments(subids)
 
-    # extract deltas from comments
-    all_submissions_comments = pd.read_csv(filepath_or_buffer=os.path.join(results_directory, 'all_data_0304.csv'),
-                                           index_col=False)
-    connect.get_deltas_manual(all_submissions_comments)
+    print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
+    logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
-    # print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
-    # logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
+    #get outcome from delta log
+    delta_log = 'DeltaLog'
+    connect.get_deltas_log(delta_log)
 
-    # get outcome from delta log
-    # delta_log = 'DeltaLog'
-    # connect.get_deltas_log(delta_log)
+    # parse delta logs for OP deltas
+    OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
 
-    # # parse delta logs for OP deltas
-    # OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
+    all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
+                                              "Causal-Inference-Final-Project\\"
+                                              "importing_change_my_view\\all submissions comments.csv",index_col=False)
 
-    # all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-    #                                           "Causal-Inference-Final-Project\\"
-    #                                           "importing_change_my_view\\all submissions comments.csv",index_col=False)
-
-    pkl_file = open('OP_deltas_comments_ids_deltalog.pickle', 'rb')
-    OP_deltas_comments_ids_deltalog = pickle.load(pkl_file)
-
-    #TODO: change save/load places to self class variables
+    # TODO: change save/load places to self class variables
     pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
     OP_deltas_comments_ids = pickle.load(pkl_file)
 
