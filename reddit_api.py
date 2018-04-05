@@ -36,15 +36,15 @@ class ApiConnection:
 
         return
 
-    def get_karma(self, user_id):
-        user = self.r_connection.redditor(user_id)
-        comments = user.comments
-        gen = user.get_submitted(limit=10)
-        karma_by_subreddit = {}
-        for thing in gen:
-            subreddit = thing.subreddit.display_name
-            karma_by_subreddit[subreddit] = (karma_by_subreddit.get(subreddit, 0)
-                                             + thing.score)
+    # def get_karma(self, user_id):
+    #     user = self.r_connection.redditor(user_id)
+    #     comments = user.comments
+    #     gen = user.get_submitted(limit=10)
+    #     karma_by_subreddit = {}
+    #     for thing in gen:
+    #         subreddit = thing.subreddit.display_name
+    #         karma_by_subreddit[subreddit] = (karma_by_subreddit.get(subreddit, 0)
+    #                                          + thing.score)
 
     def get_submissions(self):
 
@@ -173,14 +173,16 @@ class ApiConnection:
                 # if delta's parent is submission:
                 if row.loc['comment_depth'] == 0:
                     delta_comments_depth_zero.append([row.loc['comment_id'],row.loc['parent_id']])
+                    print("comment's parent is submission")
                     continue
 
                 #check that OP is not giving a delta to himself or to the deltabot
                 parent_id = row.loc['parent_id']
-                parent_id = parent_id.lstrip("b").strip("'").lstrip("t1_")
+                parent_id = parent_id.replace("b't1_", "").replace("'", "")
                 delta_comment = all_submissions_comments[all_submissions_comments["comment_id"]
                                                              .str.lstrip("b").str.strip("'") == parent_id]
                 #print("parent_id is : {}".format(parent_id))
+                print("index is ",index)
                 if (delta_comment.iloc[0]['comment_is_submitter'] == False) and \
                         (delta_comment.iloc[0]['comment_author'] != "DeltaBot"):
                     num_of_deltas += 1
@@ -357,7 +359,7 @@ class ApiConnection:
                 manual_comments = OP_deltas_comments_ids[row.loc['submission_id']]
                 manual_comments = [w.lstrip("b") for w in manual_comments]
                 manual_comments = [w.strip("'") for w in manual_comments]
-                manual_comments = [w.lstrip("t1_") for w in manual_comments]
+                manual_comments = [w.replace("t1_", "") for w in manual_comments]
 
             except ValueError:
                 print("no delta comments for submission: {} in manual".format(row.loc['submission_id']))
@@ -369,9 +371,8 @@ class ApiConnection:
 
         # save data with label
         #TODO: change path & name to dynamic
-        comments.to_csv(path_or_buf="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                                  "Causal-Inference-Final-Project\\"
-                                                  "importing_change_my_view\\all submissions comments with label.csv")
+        cols_to_keep = ['comment_id','comment_depth','delta']
+        comments[cols_to_keep].to_csv("all submissions comments with label.csv")
         return
 
 def main():
@@ -383,24 +384,32 @@ def main():
     connect = ApiConnection(subreddit)
 
     # get submissions of sub reddit
-    subids = connect.get_submissions()
+    # subids = connect.get_submissions()
 
-    # get comments of submissions
-    connect.parse_comments(subids)
+    # # get comments of submissions
+    # connect.parse_comments(subids)
 
-    print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
-    logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
+    # extract deltas from comments
+    all_submissions_comments = pd.read_csv(filepath_or_buffer=os.path.join(results_directory, 'all_data_0304.csv'),
+                                           index_col=False)
+    connect.get_deltas_manual(all_submissions_comments)
+
+    # print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
+    # logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
     # get outcome from delta log
-    delta_log = 'DeltaLog'
-    connect.get_deltas_log(delta_log)
+    # delta_log = 'DeltaLog'
+    # connect.get_deltas_log(delta_log)
 
-    # parse delta logs for OP deltas
-    OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
+    # # parse delta logs for OP deltas
+    # OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
 
-    all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                              "Causal-Inference-Final-Project\\"
-                                              "importing_change_my_view\\all submissions comments.csv",index_col=False)
+    # all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
+    #                                           "Causal-Inference-Final-Project\\"
+    #                                           "importing_change_my_view\\all submissions comments.csv",index_col=False)
+
+    pkl_file = open('OP_deltas_comments_ids_deltalog.pickle', 'rb')
+    OP_deltas_comments_ids_deltalog = pickle.load(pkl_file)
 
     #TODO: change save/load places to self class variables
     pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
