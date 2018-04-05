@@ -178,7 +178,7 @@ class ApiConnection:
                     print("comment's parent is submission")
                     continue
 
-                #check that OP is not giving a delta to himself or to the deltabot
+                # check that OP is not giving a delta to himself or to the deltabot
                 parent_id = row.loc['parent_id']
                 parent_id = parent_id.replace("b't1_", "").replace("'", "")
                 delta_comment = all_submissions_comments.loc[all_submissions_comments["comment_id"]
@@ -194,10 +194,10 @@ class ApiConnection:
                     print("bug")
 
                 real_delta = copy(delta_comment.loc[(delta_comment['comment_is_submitter'] == False)
-                                          & (delta_comment['comment_author'] != "DeltaBot")])
+                                  & (delta_comment['comment_author'] != "DeltaBot")])
                 if not real_delta.empty:
                     num_of_deltas += 1
-                    if num_of_deltas%100 ==0:
+                    if num_of_deltas % 100 == 0:
                         print("{} deltas".format(num_of_deltas))
                     OP_deltas_comments_ids[row.submission_id].append(row.parent_id)
                     OP_deltas[(row.submission_id, row.parent_id)][row.comment_id + "_" + "delta_OP"] = row.comment_author
