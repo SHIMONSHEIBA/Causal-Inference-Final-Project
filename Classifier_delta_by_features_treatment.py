@@ -16,6 +16,7 @@ import itertools
 import logging
 import os
 import math
+from xgboost.sklearn import XGBClassifier
 
 # Display progress logs on stdout
 base_directory = os.path.abspath(os.curdir)
