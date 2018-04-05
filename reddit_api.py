@@ -157,7 +157,7 @@ class ApiConnection:
 
         delta_comments_depth_zero = pd.DataFrame(columns=['comment_id','parent_id'])
         OP_deltas_comments_ids = defaultdict(list)
-        delta_tokens = ['&amp;#8710;','&#8710;','&#916;','&amp;916;','∆','!delta', 'Δ','&delta;']
+        delta_tokens = ['&amp;#8710;', '&#8710;', '&#916;', '&amp;916;','∆','!delta', 'Δ','&delta;']
         num_of_deltas = 0
         OP_deltas = defaultdict(dict)
 
@@ -176,12 +176,12 @@ class ApiConnection:
                     print("comment's parent is submission")
                     continue
 
-                #check that OP is not giving a delta to himself or to the deltabot
+                # check that OP is not giving a delta to himself or to the deltabot
                 parent_id = row.loc['parent_id']
                 parent_id = parent_id.replace("b't1_", "").replace("'", "")
                 delta_comment = all_submissions_comments[all_submissions_comments["comment_id"]
                                                              .str.lstrip("b").str.strip("'") == parent_id]
-                #print("parent_id is : {}".format(parent_id))
+                # print("parent_id is : {}".format(parent_id))
                 print("index is ",index)
                 if (delta_comment.iloc[0]['comment_is_submitter'] == False) and \
                         (delta_comment.iloc[0]['comment_author'] != "DeltaBot"):

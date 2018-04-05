@@ -126,13 +126,13 @@ class Imbalance:
 
             # create total for treat 1
             results_df = pd.DataFrame.from_dict(self.results[treat], orient='index')
-            results_df.to_csv(os.path.join(imbalance_directory, 'CMV_treat_' + str(treat) + '_results.csv'))
+            results_df.to_csv(os.path.join(imbalance_directory, 'CMV_treat_' + str(treat) + '_results_all_deltas.csv'))
 
         return
 
 
 if __name__ == '__main__':
-    features_data = pd.read_csv(os.path.join(features_directory, 'CMV_matched_data.csv'))
+    features_data = pd.read_csv(os.path.join(features_directory, 'CMV_matched_data_all_deltas.csv'))
     treatments = [1]
     treatment_column_name = 'treated'
     matched_column_name = 'matched'

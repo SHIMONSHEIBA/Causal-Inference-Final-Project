@@ -99,9 +99,11 @@ class Matching:
         result_ids = list(set(result['comment_id']))
         self.data.loc[self.data['comment_id'].isin(result_ids), 'matched'] = 1
         self.data.loc[~self.data['comment_id'].isin(result_ids), 'matched'] = 0
+        # add all deltas to data
+        self.data.loc[self.data['delta'] == 1, 'matched'] = 1
 
         if remove_duplicates:
-            return result.groupby(result.index).first()
+            return self.data.loc[self.data["matched"] == 1]
         else:
 
             return result
@@ -185,8 +187,8 @@ def main():
                                                             remove_duplicates=True)
         # save matched df
         print('matched data size for {} is {}'.format(treatment_column, matches_data_frame.shape))
-        matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'.csv')
-        matching.data.to_csv(os.path.join(data_directory, 'CMV_matched_data.csv'))
+        matches_data_frame.to_csv('matches_data_frame_'+treatment_column+'_'+propensity_column_name+'_all_deltas.csv')
+        matching.data.to_csv(os.path.join(data_directory, 'CMV_matched_data_all_deltas.csv'))
 
 
 if __name__ == '__main__':

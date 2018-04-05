@@ -93,7 +93,7 @@ class PropensityScore(object):
         """
 
         data = copy(self.data_dict[treatment])
-        hist_title = 'Histogram_' + propensity_column_name + '_matched'
+        hist_title = 'Histogram_' + propensity_column_name + '_matched_all_deltas'
         plot = plt.figure(hist_title)
         plt.hist(data.loc[data[treatment] == 1][propensity_column_name], fc=(0, 0, 1, 0.5), bins=20, label='Treated')
         plt.hist(data.loc[data[treatment] == 0][propensity_column_name], fc=(1, 0, 0, 0.5), bins=20, label='Control')
@@ -110,7 +110,7 @@ class PropensityScore(object):
 def main():
     # features_data = pd.read_csv(os.path.join(features_directory, 'final_df_CMV_after_fix.csv'))
     features_data = pd.read_csv(os.path.join(features_directory,
-                                             'matches_data_frame_treated_propensity_score_treated_logistic.csv'))
+                                             'matches_data_frame_treated_propensity_score_treated_logistic_all_deltas.csv'))
     treatments_list = ['1']
     treatment_column_name = 'treated'
     comment_id_column = 'comment_id'
@@ -146,7 +146,7 @@ def main():
         data_to_save = pd.concat([propensity_class.data_dict[treatment],
                                   pd.DataFrame(copy(features_data[y_column_name])),
                                   pd.DataFrame(copy(features_data[comment_id_column]))], axis=1)
-        data_to_save.to_csv(os.path.join(propensity_directory, 'CMV_propensity_score_' + treatment + '_matched.csv'))
+        data_to_save.to_csv(os.path.join(propensity_directory, 'CMV_propensity_score_' + treatment + '_matched_all_deltas.csv'))
         # estimate propensity method
         # print(metrics.roc_auc_score(test_label, propensity_class.data_dict[treatment][column_name], average='samples'))
 

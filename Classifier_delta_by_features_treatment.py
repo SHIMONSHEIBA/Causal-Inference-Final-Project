@@ -31,7 +31,7 @@ op.add_option("--confusion_matrix",
               action="store_true", dest="print_cm", default=True,
               help="Print the confusion matrix.")
 op.add_option("--k_fold",
-              action='store', type=int, default=15,
+              action='store', type=int, default=5,
               help='k_fold when using cross validation')
 op.add_option("--split_Peff",
               action='store', default=True,
@@ -54,14 +54,15 @@ op.print_help()
 
 ###############################################################################
 class Classifier:
-    def __init__(self):
+    def __init__(self, label_column_name):
         self.X_train = None
         self.features = None
         self.feature_names = None
         print('{}: Loading the data: final_features_causality'.format((time.asctime(time.localtime(time.time())))))
         self.labels = None
         self.featuresDF = pd.read_csv(os.path.join(features_directory,
-                                                   'matches_data_frame_treated_propensity_score_treated_logistic.csv'))
+                                                   'matches_data_frame_treated_propensity_score_treated_logistic_all_deltas.csv'))
+        self.label_column_name = label_column_name
 
         # group_dict is in the format: {index: [features list of this group], group name
         self.group_dict = {0: [['commenter_number_submission', 'commenter_number_comment',
@@ -97,13 +98,13 @@ class Classifier:
         This function split the data to opts.k_fold folders and insert the group number to the DF
         :return:
         """
-        # Split the data to k=15 groups, each comment_author in one group only
-        i = 0
+        # Split the data to k=opts.k_fold groups, each comment_author in one group only
+        i = 1
         number_sample_group = 0
         sample_per_group = math.floor(self.featuresDF.shape[0] / opts.k_fold)
         self.featuresDF = self.featuresDF.sample(frac=1).reset_index(drop=True)
         for index, row in self.featuresDF.iterrows():
-            if number_sample_group < sample_per_group:
+            if number_sample_group < sample_per_group or i == opts.k_fold:
                 self.featuresDF.set_value(index, 'group_number', i)
                 number_sample_group += 1
             else:
@@ -119,7 +120,12 @@ class Classifier:
                              format((time.asctime(time.localtime(time.time()))), i))
                 number_sample_group = 1
         opts.k_fold = i + 1
-        self.labels = self.featuresDF[['delta', 'group_number']]
+        # print for the last group
+        print('{}: finish split samples for group number {} with {} samples'.
+              format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
+        logging.info('{}: finish split samples for group number {} with {} samples'.
+                     format((time.asctime(time.localtime(time.time()))), i, number_sample_group))
+        self.labels = self.featuresDF[[self.label_column_name, 'group_number']]
         print('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
         logging.info('{}: Finish split the data'.format((time.asctime(time.localtime(time.time())))))
 
@@ -258,13 +264,13 @@ class Classifier:
         t1 = time.time()
         score = []
         auc = []
-        for out_group in range(opts.k_fold):
+        for out_group in range(1, opts.k_fold):
             t0 = time.time()
             # create train and test data
             test_data = self.X_train.loc[self.X_train['group_number'] == out_group, self.features]
-            test_label = self.labels.loc[self.X_train['group_number'] == out_group, 'IsEfficient']
+            test_label = self.labels.loc[self.X_train['group_number'] == out_group, self.label_column_name]
             train_data = self.X_train.loc[self.X_train['group_number'] != out_group, self.features]
-            train_label = self.labels.loc[self.X_train['group_number'] != out_group, 'IsEfficient']
+            train_label = self.labels.loc[self.X_train['group_number'] != out_group, self.label_column_name]
 
             # train the model
             clf.fit(train_data, train_label)
@@ -279,10 +285,10 @@ class Classifier:
             logging.info("AUC:")
             logging.info(metrics.roc_auc_score(test_label, predicted, average='samples'))
             if opts.print_cm:
-                # print("confusion matrix:")
-                # print(metrics.confusion_matrix(test_label, predicted, labels=[-1, 1]))
+                print("confusion matrix:")
+                print(metrics.confusion_matrix(test_label, predicted, labels=[0, 1]))
                 logging.info("confusion matrix:")
-                logging.info(metrics.confusion_matrix(test_label, predicted, labels=[-1, 1]))
+                logging.info(metrics.confusion_matrix(test_label, predicted, labels=[0, 1]))
             train_time = time.time() - t0
             # print("fold number {}: cross validation time: {}".format(out_group, train_time))
             logging.info("cross validation time: {}".format(train_time))
@@ -363,11 +369,12 @@ class Classifier:
 
 
 if __name__ == '__main__':
-    classifier = Classifier()
+    label_name = 'delta'
+    classifier = Classifier(label_name)
     classifier.split_relevant_data()
     if opts.is_backward_forward:
         classifier_results = classifier.iterate_over_features_groups()
     else:
         classifier_results = classifier.create_data_no_feature_selection()
 
-    classifier_results.to_csv(os.path.join(results_directory, 'CMV_classifier_results.csv'), encoding='utf-8')
+    classifier_results.to_csv(os.path.join(results_directory, 'CMV_classifier_results_all_deltas.csv'), encoding='utf-8')

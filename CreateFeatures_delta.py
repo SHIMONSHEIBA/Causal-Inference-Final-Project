@@ -39,7 +39,11 @@ class CreateFeatures:
     """
     This class will build the features for each unit: comment and its submission
     """
-    def __init__(self):
+    def __init__(self, number_of_topics):
+        """
+        Load data and pre process
+        :param int number_of_topics: number_of_topics for topic model feature
+        """
         # Load all relevant data
         units_columns = ['comment_body', 'comment_author', 'submission_author', 'submission_body', 'submission_title',
                          'comment_id', 'parent_id', 'comment_created_utc', 'submission_created_utc', 'submission_id',
@@ -65,7 +69,10 @@ class CreateFeatures:
                           number_of_comments_in_tree_from_submitter='', number_of_respond_by_submitter='',
                           number_of_respond_by_submitter_total='', respond_to_comment_user_all_ratio='',
                           respond_to_comment_user_responses_ratio='', respond_total_ratio='',
-                          submitter_seniority_days='', commenter_seniority_days='', time_between_messages='')
+                          submitter_seniority_days='', commenter_seniority_days='', time_between_messages='',
+                          nltk_com_sen_pos='', nltk_com_sen_neg='', nltk_com_sen_neutral='', nltk_sub_sen_pos='',
+                          nltk_sub_sen_neg='', nltk_sub_sen_neutral='', nltk_title_sen_pos='',
+                          nltk_title_sen_neg='', nltk_title_sen_neutral='', nltk_sim_sen='', percent_adj='')
 
         all_data_columns = ['comment_body', 'comment_author', 'submission_author', 'submission_body', 'submission_title',
                             'comment_id', 'parent_id', 'comment_created_utc', 'submission_created_utc', 'submission_id',
@@ -93,6 +100,8 @@ class CreateFeatures:
         for index, submission_id in submission_ids.iteritems():
             self.submission_data_dict[submission_id] = self.all_data.loc[self.all_data['submission_id'] == submission_id]
         print('time to create submission dict: ', time.time() - start_time)
+
+        self.number_of_topics = number_of_topics
 
     def number_of_message(self, user, comment_time, messages_type):
         """
@@ -258,11 +267,8 @@ class CreateFeatures:
             parent_body = comment['submission_body']
             parent_author = comment['submission_author']
         else:  # if not - get the parent
-            # parent_id = "b'" + parent_id + "'"
             parent = self.all_data.loc[self.all_data['comment_id'] == parent_id]
             if parent.empty:  # if we don't have the parent as comment in the data
-                # print('no parent comment for comment_id: {}'.format(comment_id))
-                # logging.info('no parent comment for comment_id: {}'.format(comment_id))
                 parent_body = ''
                 parent_author = ''
                 no_parent = True
@@ -277,26 +283,61 @@ class CreateFeatures:
         if submission_author == parent_author:  # check if the parent author is the submitter
             # if he quote the submission or the parent
             if (quote in parent_body) or (quote in submission_body) or (quote in submission_title):
-                # self.units.loc[index, 'treated'] = 1
                 return 1
             else:  # he didn't quote the submitter
-                # self.units.loc[index, 'treated'] = 0
                 return 0
         else:  # if the parent author is not the submitter
             if (quote in submission_body) or (quote in submission_title):  # we only care of he quote the submission:
-                # self.units.loc[index, 'treated'] = 1
-                # print('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
-                # logging.info('quote the submission, but it is not its parent for comment_id: {}'.format(comment_id))
                 return 1
             else:
                 if no_parent:
                     # if there is no parent and he didn't quote the submission, we can't know if he quote the parent
-                    # - so maybe we don't need to use it
-                    # self.units.loc[index, 'treated'] = -1
+                    # - so we don't need to use it
                     return -1
                 else:
-                    # self.units.loc[index, 'treated'] = 0
                     return 0
+
+    def topic_model(self):
+        """
+        Calculate the topic model for all the units, the probability that the comment has each of the topics
+        :return: pandas DF[number_of_units, number_of_topics] - the probability for each comment and topic
+        """
+        # Clean the data
+        print('{}: Clean the data'.format((time.asctime(time.localtime(time.time())))))
+        units_clean = {row['comment_id']: clean(row['comment_body']).split()
+                       for index, row in self.units.iterrows()}
+        all_data_clean = {row['comment_id']: clean(row['comment_body']).split()
+                          for index, row in self.all_data.iterrows()}
+        # Creating the term dictionary of our corpus, where every unique term is assigned an index.
+        print('{}: Create the dictionary'.format((time.asctime(time.localtime(time.time())))))
+        dictionary = corpora.Dictionary(all_data_clean.values())
+
+        # Converting list of documents (corpus) into Document Term Matrix using dictionary prepared above.
+        print('{}: Create units term matrix'.format((time.asctime(time.localtime(time.time())))))
+        units_term_matrix = {index: dictionary.doc2bow(doc) for index, doc in units_clean.items()}
+        print('{}: Create all data term matrix'.format((time.asctime(time.localtime(time.time())))))
+        all_data_term_matrix = {index: dictionary.doc2bow(doc) for index, doc in all_data_clean.items()}
+
+        # Create LDA model
+        print('{}: Create model'.format((time.asctime(time.localtime(time.time())))))
+        model = ldamodel.LdaTransformer(num_topics=self.number_of_topics, id2word=dictionary, passes=50,
+                                        minimum_probability=0)
+        # Train LDA model on the comments term matrix.
+        print('{}: Fit the model on all data'.format((time.asctime(time.localtime(time.time())))))
+        model = model.fit(list(all_data_term_matrix.values()))
+        # Get topics for the data
+        print('{}: Predict topics for units'.format((time.asctime(time.localtime(time.time())))))
+        result = model.transform(list(units_term_matrix.values()))
+
+        print('{}: Create final topic model data'.format((time.asctime(time.localtime(time.time())))))
+        comment_ids_df = pd.DataFrame(list(units_term_matrix.keys()), columns=['comment_id'])
+        result_columns = ['topic_model_'+str(i) for i in range(self.number_of_topics)]
+        topic_model_result_df = pd.DataFrame(result, columns=result_columns)
+
+        print('{}: Save final topic model data'.format((time.asctime(time.localtime(time.time())))))
+        topic_model_final_result = pd.concat([comment_ids_df, topic_model_result_df], axis=1)
+
+        return topic_model_final_result
 
 
 def sentiment_analysis(text):
@@ -357,18 +398,20 @@ def clean(text):
 
 
 def main():
+    topics_number = 15
     print('{}: Loading the data'.format((time.asctime(time.localtime(time.time())))))
-    create_features = CreateFeatures()
+    create_features = CreateFeatures(topics_number)
     print('{}: Finish loading the data'.format((time.asctime(time.localtime(time.time())))))
     print('data sizes: all data: {}, units data: {}'.format(create_features.all_data.shape,
                                                             create_features.units.shape))
 
     # Features calculated for all the data frame:
+    topic_model_result = create_features.topic_model()
+    create_features.units = create_features.units.merge(topic_model_result, on='comment_id')
     create_features.units['comment_len'] = create_features.units['comment_body'].str.len()
     create_features.units['submission_len'] = create_features.units['submission_body'].str.len()
     create_features.units['title_len'] = create_features.units['submission_title'].str.len()
 
-    all_comments_features = pd.DataFrame()
     new_index = 0
     number_of_treatment_minus_1 = 0
     for index, comment in create_features.units.iterrows():
@@ -485,7 +528,7 @@ def main():
         new_index += 1
 
     # export the data to csv file
-    all_comments_features.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
+    create_features.units.T.to_csv(os.path.join(data_directory, 'features_CMV.csv'), encoding='utf-8')
     print('number_of_treatment_minus_1: ', number_of_treatment_minus_1)
 
 
