@@ -320,7 +320,7 @@ class Classifier:
                 (KNeighborsClassifier(n_neighbors=10), "kNN"),
                 (RandomForestClassifier(), 'Random forest'),  # n_estimators=100, bootstrap=False
                 (XGBClassifier(learning_rate =0.1, n_estimators=100, max_depth=3, min_child_weight=1, gamma=0, subsample=0.9,
-                colsample_bytree=0.8, objective= 'reg:linear', nthread=4, scale_pos_weight=1), 'XGBClassifier')
+                colsample_bytree=0.8, objective= 'reg:linear', nthread=4, scale_pos_weight=1), 'XGBClassifier'),
                 (SVC(C=1e-8, gamma=1.0/self.X_train.shape[1], kernel='rbf'), "SVM with RBF Kernel")):
 
             print('=' * 80)
