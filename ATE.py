@@ -39,10 +39,36 @@ def estimate_ate(Y, X, treatment_column, model, label_column):
     return covariate_adjustment
 
 
+def estimate_ate2(Y, X, treatment_column, model, label_column, variable_name, propensity_name):
+    """
+    This function estimate the ATE for the treatment
+    :param pandas DF Y: the labels
+    :param pandas DF X: the covariates
+    :param str treatment_column: the name of the treatment column
+    :param model: the trained model
+    :param str label_column: the name of the label column
+    :return: the treatment effect based on the covarite adjustment method
+    """
+
+    propensity = X[propensity_name]
+    X = X[variable_name]
+    gold = Y[label_column]
+    num_of_units = gold.shape[0]
+
+    part_one = (1/num_of_units)*sum((gold * X[treatment_column])/propensity)
+    print("part one2 is: ", part_one)
+    part_two = (1 / num_of_units) * sum((gold * (1-X[treatment_column])) / (1-propensity))
+    print("part two2 is: ", part_two)
+    ATE = part_one + part_two
+
+    return ATE
+
+
 def main():
 
     model = MultinomialNB(alpha=.01)
-    treatments_list = [['treated', 'delta', 'matches_data_frame_treated_propensity_score_treated_logistic.csv']]
+    treatments_list = [['treated', 'delta', 'matches_data_frame_treated_propensity_score_treated_logistic.csv',
+                        'propensity_score_treated_logistic']]
     variable_name = ['commenter_number_submission', 'submitter_number_submission',
                      'submitter_seniority_days', 'is_first_comment_in_tree',
                      'commenter_number_comment', 'submitter_number_comment',
@@ -62,14 +88,20 @@ def main():
     for treats in treatments_list:
         treatment_column = treats[0]
         data_name = treats[2]
-        # propensity_column_name = treats[2]
+        propensity_column_name = treats[3]
         data_path = os.path.join(sub_directory, data_name)
         data = pd.read_csv(data_path)
         X = data[variable_name]
         Y = data[[treats[1], treatment_column]]
         model.fit(X=X, y=Y[treats[1]])
+        variable_name2 = variable_name + [propensity_column_name]
+        X2 = data[variable_name2]
         covariate_adjustment = estimate_ate(Y, X, treatment_column, model, treats[1])
-        print("covariate_adjustment ATE estimate for {} treatment is: {}".format(treatment_column, covariate_adjustment))
+        covariate_adjustment2 = estimate_ate2(Y, X2, treatment_column, model, treats[1], variable_name,
+                                              propensity_column_name)
+        print("covariate_adjustment ATE estimate for {} treatment is: {}".format(treatment_column,
+                                                                                 covariate_adjustment))
+        print("ATE2 estimate for {} treatment is: {}".format(treatment_column, covariate_adjustment2))
     return
 
 
