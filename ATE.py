@@ -59,7 +59,7 @@ def estimate_ate2(Y, X, treatment_column, model, label_column, variable_name, pr
     print("part one2 is: ", part_one)
     part_two = (1 / num_of_units) * sum((gold * (1-X[treatment_column])) / (1-propensity))
     print("part two2 is: ", part_two)
-    ATE = part_one + part_two
+    ATE = part_one - part_two
 
     return ATE
 
