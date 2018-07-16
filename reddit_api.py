@@ -443,7 +443,7 @@ def main():
     #create label
     all_submissions_comments_with_label = connect.create_label(all_submissions_comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
     all_submissions_comments_with_label.to_csv("all submissions comments with label and all deltalog.csv")
-    
+
     #add missing delta from delta log
     #connect.complete_deltas_from_log_not_in_data(OP_deltas_comments_ids_deltalog, all_submissions_comments_with_label)
 
