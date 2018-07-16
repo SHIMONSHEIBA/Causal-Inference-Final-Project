@@ -149,11 +149,11 @@ class ApiConnection:
             print("total number of comments so far is {}".format(num_of_total_comments))
             logging.info("total number of comments so far is {}".format(num_of_total_comments))
 
-        # extract deltas from comments
+        #extract deltas from comments
         all_submissions_comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments.csv'))
-        self.get_deltas_manual(all_submissions_comments)
+        OP_deltas_comments_ids = self.get_deltas_manual(all_submissions_comments)
 
-        return
+        return OP_deltas_comments_ids, all_submissions_comments
 
     def get_deltas_manual(self, all_submissions_comments):
 
@@ -224,8 +224,7 @@ class ApiConnection:
         delta_comments_depth_zero.to_csv(path_or_buf="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
                                                   "Causal-Inference-Final-Project\\"
                                                   "importing_change_my_view\\delta_comments_depth_zero.csv")
-
-        return
+        return OP_deltas_comments_ids
 
     def get_deltas_log(self, delta_log):
         """
@@ -387,7 +386,38 @@ class ApiConnection:
         # TODO: change path & name to dynamic
         cols_to_keep = ['comment_id', 'comment_depth', 'delta']
         comments[cols_to_keep].to_csv("all submissions comments with label.csv")
-        return
+        return comments
+
+    def complete_deltas_from_log_not_in_data(self,OP_deltas_comments_ids_deltalog, all_submissions_comments_with_label):
+        """
+        this method checks which submissions appeared in delta log and not in imported data and brings the missing data,
+        then concatenate with existing data
+        :param OP_deltas_comments_ids_deltalog: dictionary of submissions that have delta comments from delta log
+        :param all_submissions_comments_with_label: imported comments data
+        :return: complete data
+        """
+
+        #get submissions from delta log that are not in data
+        deltas_log_intersection_keys = set(
+            all_submissions_comments_with_label["submission_id"].str.lstrip("b").str.strip("'")).intersection(
+            set(OP_deltas_comments_ids_deltalog.keys()))
+        log_keys_not_in_data = list(
+            set(OP_deltas_comments_ids_deltalog.keys()).difference(deltas_log_intersection_keys))
+
+        # save them
+        with open('submissions_from_delta_log_not_in_data.pickle', 'wb') as handle:
+            pickle.dump(log_keys_not_in_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # get submissions and comments of submission from delta log that are not in data
+        #TODO: change the method such that it saves .csv dinamically, as well as in get_delta_manual
+        OP_deltas_comments_ids, all_submissions_comments_deltalog_not_in_data = self.parse_comments(log_keys_not_in_data)
+
+        all_submissions_comments_label_union = all_submissions_comments_with_label.append(
+            all_submissions_comments_deltalog_not_in_data)
+
+        all_submissions_comments_label_union.to_csv("all submissions comments with label and all deltalog.csv")
+
+        return all_submissions_comments_label_union
 
 
 def main():
@@ -397,11 +427,11 @@ def main():
     # create class instance
     connect = ApiConnection(subreddit)
 
-    # get submissions of sub reddit
+    #get submissions of sub reddit
     subids = connect.get_submissions()
 
-    # get comments of submissions
-    connect.parse_comments(subids)
+    #get comments of submissions
+    OP_deltas_comments_ids, all_submissions_comments = connect.parse_comments(subids)
 
     print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
@@ -410,16 +440,12 @@ def main():
     delta_log = 'DeltaLog'
     OP_deltas_comments_ids_deltalog = connect.get_deltas_log(delta_log)
 
-    all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                              "Causal-Inference-Final-Project\\"
-                                              "importing_change_my_view\\all submissions comments.csv", index_col=False)
-
-    # TODO: change save/load places to self class variables
-    pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
-    OP_deltas_comments_ids = pickle.load(pkl_file)
-
-    connect.create_label(all_submissions_comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
-
+    #create label
+    all_submissions_comments_with_label = connect.create_label(all_submissions_comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
+    all_submissions_comments_with_label.to_csv("all submissions comments with label and all deltalog.csv")
+    
+    #add missing delta from delta log
+    #connect.complete_deltas_from_log_not_in_data(OP_deltas_comments_ids_deltalog, all_submissions_comments_with_label)
 
 if __name__ == '__main__':
     main()
