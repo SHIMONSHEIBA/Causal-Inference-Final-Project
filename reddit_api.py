@@ -157,10 +157,12 @@ class ApiConnection:
 
     def get_deltas_manual(self, all_submissions_comments):
 
-        delta_comments_depth_zero = pd.DataFrame(columns=['comment_id','parent_id'])
+        delta_comments_depth_zero = pd.DataFrame(columns=['comment_id', 'parent_id'])
+        # OP_deltas_comments_ids: {submission_id: [comments that gor delta]}
         OP_deltas_comments_ids = defaultdict(list)
-        delta_tokens = ['&amp;#8710;','&#8710;','&#916;','&amp;916;','∆','!delta', 'Δ','&delta;']
+        delta_tokens = ['&amp;#8710;', '&#8710;', '&#916;', '&amp;916;', '∆', '!delta', 'Δ', '&delta;']
         num_of_deltas = 0
+        # OP_deltas: {(submission_id, comment_that_got_delta_is) : {comment_gave_delta_id+desc.: value}}
         OP_deltas = defaultdict(dict)
 
         # find all delta comments and save their details in OP_deltas_comments_ids and the comments that got the delta
@@ -173,26 +175,28 @@ class ApiConnection:
                     and len(row.loc['comment_body']) > 50:
 
                 # if delta's parent is submission:
+                # TODO: check if comment_depth = 0 is the submission or the first comment in the tree
                 if row.loc['comment_depth'] == 0:
-                    delta_comments_depth_zero.append([row.loc['comment_id'],row.loc['parent_id']])
+                    delta_comments_depth_zero.append([row.loc['comment_id'], row.loc['parent_id']])
                     print("comment's parent is submission")
                     continue
 
                 # check that OP is not giving a delta to himself or to the deltabot
                 parent_id = row.loc['parent_id']
                 parent_id = parent_id.replace("b't1_", "").replace("'", "")
+                # the comment that is the parent of row (got the delta)
                 delta_comment = all_submissions_comments.loc[all_submissions_comments["comment_id"]
                                                              .str.lstrip("b").str.strip("'") == parent_id]
 
                 # if comment of parent_id is not in data
                 if delta_comment.empty:
                     continue
-
+                # check if the author of the parent of row is not the submitter
                 check_delta = copy(delta_comment.loc[delta_comment['comment_is_submitter'] == True])
 
                 if not check_delta.empty:
-                    print("bug")
-
+                    print("submitter gave delta to himself")
+                # comments that are the row's parent and not written by the submitter or delta bot
                 real_delta = copy(delta_comment.loc[(delta_comment['comment_is_submitter'] == False)
                                   & (delta_comment['comment_author'] != "DeltaBot")])
                 if not real_delta.empty:
@@ -251,11 +255,10 @@ class ApiConnection:
             logging.info("added delta id : {} of title: {}".format(delta.id, delta.title))
             logging.info("total number of deltas so far is {}".format(num_of_total_deltas))
 
-        #TODO: enable this for final code and not from main (just for clear code)
         # parse delta logs for OP deltas
-        #OP_deltas_comments_ids_deltalog = self.parse_op_deltas()
+        OP_deltas_comments_ids_deltalog = self.parse_op_deltas()
 
-        return
+        return OP_deltas_comments_ids_deltalog
 
     def parse_op_deltas(self):
         """
@@ -310,7 +313,7 @@ class ApiConnection:
                 awarding_username = awarding_username.strip(",'")
 
                 if awarding_username != op_username:
-                    # print("not OP's delta")
+                    print("not OP's delta")
                     continue
 
                 # get awarded delta comment id index
@@ -339,7 +342,7 @@ class ApiConnection:
 
         return OP_deltas_comments_ids_deltalog
 
-    def create_label(self,comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids):
+    def create_label(self, comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids):
         """
         this method creates a label for delta label
         :param OP_deltas_comments_ids_deltalog: dict of submission_id : comment id from deltalog
@@ -381,20 +384,20 @@ class ApiConnection:
                 comments.loc[index, "delta"] = 1
 
         # save data with label
-        #TODO: change path & name to dynamic
-        cols_to_keep = ['comment_id','comment_depth','delta']
+        # TODO: change path & name to dynamic
+        cols_to_keep = ['comment_id', 'comment_depth', 'delta']
         comments[cols_to_keep].to_csv("all submissions comments with label.csv")
         return
 
-def main():
 
+def main():
     subreddit = 'changemyview'
     print('{} : Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     # create class instance
     connect = ApiConnection(subreddit)
 
-    #get submissions of sub reddit
+    # get submissions of sub reddit
     subids = connect.get_submissions()
 
     # get comments of submissions
@@ -403,22 +406,20 @@ def main():
     print('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
     logging.info('{} : finished Run for sub reddit {}'.format((time.asctime(time.localtime(time.time()))), subreddit))
 
-    #get outcome from delta log
+    # get outcome from delta log
     delta_log = 'DeltaLog'
-    connect.get_deltas_log(delta_log)
-
-    # parse delta logs for OP deltas
-    OP_deltas_comments_ids_deltalog = connect.parse_op_deltas()
+    OP_deltas_comments_ids_deltalog = connect.get_deltas_log(delta_log)
 
     all_submissions_comments = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
                                               "Causal-Inference-Final-Project\\"
-                                              "importing_change_my_view\\all submissions comments.csv",index_col=False)
+                                              "importing_change_my_view\\all submissions comments.csv", index_col=False)
 
     # TODO: change save/load places to self class variables
     pkl_file = open('OP_deltas_comments_ids.pickle', 'rb')
     OP_deltas_comments_ids = pickle.load(pkl_file)
 
     connect.create_label(all_submissions_comments, OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids)
+
 
 if __name__ == '__main__':
     main()
