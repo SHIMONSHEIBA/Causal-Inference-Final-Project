@@ -175,7 +175,7 @@ class ApiConnection:
                     and len(row.loc['comment_body']) > 50:
 
                 # if delta's parent is submission:
-                # TODO: check if comment_depth = 0 is the submission or the first comment in the tree
+                # comment_depth = 0 is the first comment in the tree
                 if row.loc['comment_depth'] == 0:
                     delta_comments_depth_zero.append([row.loc['comment_id'], row.loc['parent_id']])
                     print("comment's parent is submission")
@@ -221,9 +221,7 @@ class ApiConnection:
             pickle.dump(OP_deltas_comments_ids, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open('OP_deltas.pickle', 'wb') as handle:
             pickle.dump(OP_deltas, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        delta_comments_depth_zero.to_csv(path_or_buf="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                                  "Causal-Inference-Final-Project\\"
-                                                  "importing_change_my_view\\delta_comments_depth_zero.csv")
+        delta_comments_depth_zero.to_csv(os.path.join(results_directory, 'delta_comments_depth_zero.csv'))
         return OP_deltas_comments_ids
 
     def get_deltas_log(self, delta_log):
@@ -255,19 +253,17 @@ class ApiConnection:
             logging.info("total number of deltas so far is {}".format(num_of_total_deltas))
 
         # parse delta logs for OP deltas
-        OP_deltas_comments_ids_deltalog = self.parse_op_deltas()
+        deltas = pd.read_csv(os.path.join(results_directory, 'all deltas.csv'), index_col=False)
+
+        OP_deltas_comments_ids_deltalog = self.parse_op_deltas(deltas)
 
         return OP_deltas_comments_ids_deltalog
 
-    def parse_op_deltas(self):
+    def parse_op_deltas(self, deltas):
         """
         this method parse the text of each delta comment from delta log and saves the IDs of the ones given by OP
         :return: OP delta comment ids dict {submission id: [comments id]}
         """
-        # TODO: change path & name to dynamic
-        deltas = pd.read_csv(filepath_or_buffer="C:\\Users\\ssheiba\\Desktop\\MASTER\\causal inference\\"
-                                                "Causal-Inference-Final-Project\\"
-                                                "importing_change_my_view\\all deltas.csv", index_col=False)
 
         OP_deltas_comments_ids_deltalog = defaultdict(list)
         comments_with_delta_ids = list()
