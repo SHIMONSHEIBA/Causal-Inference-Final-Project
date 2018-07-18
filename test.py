@@ -215,23 +215,23 @@ import os
 # months = divmod(c.days * 86400 + c.seconds, 60)
 # print(c.days/31)
 
-import urllib.parse
-import urllib.request
-import pandas as pd
-import nltk as nk
-import time
-import math
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from nltk.corpus import stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
-import string
-import gensim
-from gensim import corpora
-from nltk.stem import PorterStemmer
-from nltk.tokenize import sent_tokenize, word_tokenize
-from gensim.sklearn_api import ldamodel
-from gensim.models import LdaModel
+# import urllib.parse
+# import urllib.request
+# import pandas as pd
+# import nltk as nk
+# import time
+# import math
+# from sklearn.metrics.pairwise import cosine_similarity
+# import numpy as np
+# from nltk.corpus import stopwords
+# from nltk.stem.wordnet import WordNetLemmatizer
+# import string
+# # import gensim
+# from gensim import corpora
+# from nltk.stem import PorterStemmer
+# from nltk.tokenize import sent_tokenize, word_tokenize
+# from gensim.sklearn_api import ldamodel
+# from gensim.models import LdaModel
 
 # ps = PorterStemmer()
 #
@@ -457,9 +457,14 @@ from gensim.models import LdaModel
 # print('time for empty: ', empty_time1 - empty_time)
 
 
-base_directory = os.path.abspath(os.curdir)
-data_directory = os.path.join(base_directory, 'change my view')
-check = pd.read_csv(os.path.join(data_directory, 'final_df_CMV_after_fix.csv'), encoding='utf-8')
-print(check.min())
+# base_directory = os.path.abspath(os.curdir)
+# data_directory = os.path.join(base_directory, 'change my view')
+# check = pd.read_csv(os.path.join(data_directory, 'final_df_CMV_after_fix.csv'), encoding='utf-8')
+# print(check.min())
+#
+# reut = 1
 
-reut = 1
+my_list = [1, 2, 3]
+print(my_list)
+my_list.pop()
+print(my_list)
