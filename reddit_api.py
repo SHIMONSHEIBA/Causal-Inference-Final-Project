@@ -412,7 +412,7 @@ class ApiConnection:
         all_submissions_comments_deltalog_not_in_data = self.parse_comments(log_keys_not_in_data)
 
         # create label only for new data
-        file_name = "all submissions comments deltalog not in data with label.csv"
+        file_name = "all_submissions_comments_deltalog_not_in_data_with_label.csv"
         all_submissions_comments_deltalog_not_in_data_with_label = \
             self.create_label(all_submissions_comments_deltalog_not_in_data, OP_deltas_comments_ids_deltalog,
                           OP_deltas_comments_ids, file_name)
@@ -451,18 +451,17 @@ def main():
     #                                                            OP_deltas_comments_ids)
     # all_submissions_comments_with_label.to_csv("all submissions comments with label and all deltalog.csv")
 
-    #add missing delta from delta log
+    # add missing delta from delta log
     all_submissions_comments_with_label_latest = pd.read_csv(os.path.join(results_directory,
-                                                                          'all submissions comments with label_latest.csv'))
-    pkl_file = open('OP_deltas_comments_ids_deltalog.pickle', 'rb')
+                                                                          'all submissions comments with label.csv'))
+    pkl_file = open('change my view/OP_deltas_comments_ids_deltalog.pickle', 'rb')
     OP_deltas_comments_ids_deltalog = pickle.load(pkl_file)
 
-    pkl_file = open('OP_deltas_comments_ids_latest.pickle', 'rb')
+    pkl_file = open('change my view/OP_deltas_comments_ids.pickle', 'rb')
     OP_deltas_comments_ids = pickle.load(pkl_file)
 
     connect.complete_deltas_from_log_not_in_data(OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids,
                                                  all_submissions_comments_with_label_latest)
-
 
 
 if __name__ == '__main__':
