@@ -405,7 +405,6 @@ class ApiConnection:
             pickle.dump(log_keys_not_in_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # get submissions and comments of submission from delta log that are not in data
-        #TODO: change the method such that it saves .csv dinamically, as well as in get_delta_manual
         OP_deltas_comments_ids, all_submissions_comments_deltalog_not_in_data = self.parse_comments(log_keys_not_in_data)
 
         all_submissions_comments_label_union = all_submissions_comments_with_label.append(
