@@ -14,7 +14,7 @@ import numpy as np
 # configurate logging
 base_directory = os.path.abspath(os.curdir)
 log_directory = os.path.join(base_directory, 'logs')
-results_directory = os.path.join(base_directory, 'importing_change_my_view')
+results_directory = os.path.join(base_directory, 'change my view')
 LOG_FILENAME = os.path.join(log_directory,
                             datetime.now().strftime('LogFile_importing_change_my_view_%d_%m_%Y_%H_%M_%S.log'))
 logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, )
@@ -104,7 +104,8 @@ class ApiConnection:
         index = len(subid)
 
         # prepare the file
-        with open(os.path.join(results_directory, 'all submissions comments deltalog not in data.csv'), 'a') as file:
+        with open(os.path.join(results_directory,
+                               'all_submissions_comments_of_submission_deltalog_not_in_data.csv'), 'a') as file:
             writer = csv.writer(file, lineterminator='\n')
             fieldnames2 = ['comment_author', 'comment_created_utc', 'comment_edited', 'comment_body',
                            'comment_path', 'comment_id', 'parent_id', 'submission_id', 'comment_is_submitter',
@@ -132,7 +133,8 @@ class ApiConnection:
             for comment in submission.comments.list():
 
                 comments[subid[i]].append(comment)
-                with open(os.path.join(results_directory, 'all submissions comments deltalog not in data.csv'), 'a') as file:
+                with open(os.path.join(results_directory,
+                                       'all_submissions_comments_of_submission_deltalog_not_in_data.csv'), 'a') as file:
                     writer = csv.writer(file, lineterminator='\n')
                     writer.writerow([comment.author, comment.created_utc,
                                      comment.edited,
@@ -149,11 +151,13 @@ class ApiConnection:
             print("total number of comments so far is {}".format(num_of_total_comments))
             logging.info("total number of comments so far is {}".format(num_of_total_comments))
 
-        #extract deltas from comments
-        all_submissions_comments = pd.read_csv(os.path.join(results_directory, 'all submissions comments deltalog not in data.csv'))
-        #OP_deltas_comments_ids = self.get_deltas_manual(all_submissions_comments)
+        # extract deltas from comments
+        all_submissions_comments = pd.read_csv(os.path.join
+                                               (results_directory,
+                                                'all_submissions_comments_of_submission_deltalog_not_in_data.csv'))
+        # OP_deltas_comments_ids = self.get_deltas_manual(all_submissions_comments)
 
-        return all_submissions_comments #, OP_deltas_comments_ids
+        return all_submissions_comments  # , OP_deltas_comments_ids
 
     def get_deltas_manual(self, all_submissions_comments):
 
@@ -393,7 +397,7 @@ class ApiConnection:
         :return: complete data
         """
 
-        #get submissions from delta log that are not in data
+        # get submissions from delta log that are not in data
         deltas_log_intersection_keys = set(
             all_submissions_comments_with_label["submission_id"].str.lstrip("b").str.strip("'")).intersection(
             set(OP_deltas_comments_ids_deltalog.keys()))
@@ -408,7 +412,7 @@ class ApiConnection:
         all_submissions_comments_deltalog_not_in_data = self.parse_comments(log_keys_not_in_data)
 
         # create label only for new data
-        file_name = "all submissions comments deltalog not in data with label.csv"
+        file_name = "all_submissions_comments_deltalog_not_in_data_with_label.csv"
         all_submissions_comments_deltalog_not_in_data_with_label = \
             self.create_label(all_submissions_comments_deltalog_not_in_data, OP_deltas_comments_ids_deltalog,
                           OP_deltas_comments_ids, file_name)
@@ -447,18 +451,17 @@ def main():
     #                                                            OP_deltas_comments_ids)
     # all_submissions_comments_with_label.to_csv("all submissions comments with label and all deltalog.csv")
 
-    #add missing delta from delta log
+    # add missing delta from delta log
     all_submissions_comments_with_label_latest = pd.read_csv(os.path.join(results_directory,
-                                                                          'all submissions comments with label_latest.csv'))
-    pkl_file = open('OP_deltas_comments_ids_deltalog.pickle', 'rb')
+                                                                          'all submissions comments with label.csv'))
+    pkl_file = open('change my view/OP_deltas_comments_ids_deltalog.pickle', 'rb')
     OP_deltas_comments_ids_deltalog = pickle.load(pkl_file)
 
-    pkl_file = open('OP_deltas_comments_ids_latest.pickle', 'rb')
+    pkl_file = open('change my view/OP_deltas_comments_ids.pickle', 'rb')
     OP_deltas_comments_ids = pickle.load(pkl_file)
 
     connect.complete_deltas_from_log_not_in_data(OP_deltas_comments_ids_deltalog, OP_deltas_comments_ids,
                                                  all_submissions_comments_with_label_latest)
-
 
 
 if __name__ == '__main__':

@@ -464,7 +464,13 @@ import os
 #
 # reut = 1
 
-my_list = [1, 2, 3]
-print(my_list)
-my_list.pop()
-print(my_list)
+# my_list = [1, 2, 3]
+# print(my_list)
+# my_list.pop()
+# print(my_list)
+
+import numpy as np
+import pandas as pd
+
+data = pd.read_csv('change my view/all_submissions_comments_with_label_all_deltalog_final.csv')
+reut = 1
