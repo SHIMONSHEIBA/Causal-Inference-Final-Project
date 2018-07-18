@@ -293,7 +293,7 @@ class BranchStatistics:
         data_with_branch_info = pd.merge(left=self.comments_with_label, right=self.branch_comments_info_df,
                                          on=['comment_id', 'comment_depth', 'submission_id', 'delta'], how='inner')
         data_with_branch_info.to_csv(os.path.join(
-            data_directory, 'all submissions comments with label_with_branch.csv'))
+            data_directory, 'all_submissions_comments_of_submission_deltalog_not_in_data_with_branch.csv'))
 
         # print numbers:
         print('{}: Finish running. \nTotal number of roots is: {}, total number of branches is: {} in {} submissions'.
