@@ -464,7 +464,16 @@ import os
 #
 # reut = 1
 
-my_list = [1, 2, 3]
-print(my_list)
-my_list.pop()
-print(my_list)
+# my_list = [1, 2, 3]
+# print(my_list)
+# my_list.pop()
+# print(my_list)
+
+import numpy as np
+num = 3
+num = np.nansum([num, np.nan])
+print(num)
+
+num_comments_after_delta = None
+if num_comments_after_delta > 0:
+    print('ok')
