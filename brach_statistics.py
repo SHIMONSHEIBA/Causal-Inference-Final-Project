@@ -8,8 +8,8 @@ import time
 
 base_directory = os.path.abspath(os.curdir)
 data_directory = os.path.join(base_directory, 'change my view')
-original_data_file_path = os.path.join(data_directory, 'dfs_test.csv')
-# all_submissions_comments_of_submission_deltalog_not_in_data
+original_data_file_path = os.path.join(data_directory, 'all_submissions_comments_with_label_all_deltalog_final.csv')
+# all_submissions_comments_with_label_all_deltalog_final
 
 
 class BranchStatistics:
@@ -70,6 +70,7 @@ class BranchStatistics:
         # DF with all the comments that are not roots
         self.not_roots = copy(self.comments_with_label.loc[~self.comments_with_label['comment_is_root']])
         self.not_roots = self.not_roots[['comment_id', 'submission_id', 'comment_depth', 'delta', 'parent_id']]
+        self.submission_comments_df = None
 
     def insert_row_root_df(self, submission_id, root_id):
         """
@@ -90,7 +91,7 @@ class BranchStatistics:
                                           self.num_branches_comments_after_delta_in_root},
                                      index=[self.number_roots])
         self.number_roots += 1
-        if self.number_roots % 10 == 0:
+        if self.number_roots % 100 == 0:
             print('{}: Done {} roots'.format((time.asctime(time.localtime(time.time()))), self.number_roots))
 
         self.root_info_df = self.root_info_df.append(root_row_info)
@@ -153,7 +154,8 @@ class BranchStatistics:
             # add the child to the stack
             stack.append((child['comment_id'], child['comment_depth'], child['delta']))
             # get the child's children
-            child_children_df = self.not_roots.loc[self.not_roots['parent_id'] == child['comment_id']]
+            child_children_df = self.submission_comments_df.loc[
+                self.submission_comments_df['parent_id'] == child['comment_id']]
             # update delta_in_branch
             if child['delta'] == 1:  # the node got delta
                 delta_in_branch = True
@@ -177,7 +179,7 @@ class BranchStatistics:
                     # get the last index
                     delta_row_num = delta_row_list[-1] + 1  # add 1 because the index starts from 0
                     num_comments_after_delta = branch_df.shape[0] - delta_row_num
-                    num_comments_after_delta = int(num_comments_after_delta[0])
+                    num_comments_after_delta = int(num_comments_after_delta)
                     print('{}: branch {} has {} deltas'.format((time.asctime(time.localtime(time.time()))), branch_key,
                                                                num_delta))
                 else:  # no delta in branch
@@ -221,7 +223,7 @@ class BranchStatistics:
             # get all submission's roots
             submission_roots_df = only_roots.loc[only_roots['submission_id'] == submission_id]
             # get all submission's comments that are not roots
-            submission_comments_df = self.not_roots.loc[self.not_roots['submission_id'] == submission_id]
+            self.submission_comments_df = self.not_roots.loc[self.not_roots['submission_id'] == submission_id]
             # a stack for the algorithm
             stack = list()
             # for each root: create its branches
@@ -230,7 +232,7 @@ class BranchStatistics:
                 root_id = root['comment_id']
                 # run index of the number of branches with this root
                 # get all the children of this root
-                root_children_df = submission_comments_df.loc[submission_comments_df['parent_id'] == root_id]
+                root_children_df = self.submission_comments_df.loc[self.submission_comments_df['parent_id'] == root_id]
                 root_delta = root['delta']
                 # get the root info: (comment_id, comment_depth, delta) if we create a new key:value
                 stack.append((root['comment_id'], root['comment_depth'], root_delta))
@@ -293,7 +295,7 @@ class BranchStatistics:
         data_with_branch_info = pd.merge(left=self.comments_with_label, right=self.branch_comments_info_df,
                                          on=['comment_id', 'comment_depth', 'submission_id', 'delta'], how='inner')
         data_with_branch_info.to_csv(os.path.join(
-            data_directory, 'all_submissions_comments_of_submission_deltalog_not_in_data_with_branch.csv'))
+            data_directory, 'all_submissions_comments_with_label_all_deltalog_final_with_branches.csv'))
 
         # print numbers:
         print('{}: Finish running. \nTotal number of roots is: {}, total number of branches is: {} in {} submissions'.

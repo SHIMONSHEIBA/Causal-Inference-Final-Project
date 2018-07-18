@@ -470,10 +470,7 @@ import os
 # print(my_list)
 
 import numpy as np
-num = 3
-num = np.nansum([num, np.nan])
-print(num)
+import pandas as pd
 
-num_comments_after_delta = None
-if num_comments_after_delta > 0:
-    print('ok')
+data = pd.read_csv('change my view/all_submissions_comments_with_label_all_deltalog_final.csv')
+reut = 1
