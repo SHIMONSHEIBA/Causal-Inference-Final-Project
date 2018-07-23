@@ -1,10 +1,22 @@
 import torch as tr
-import pandas as pd
 
-# a = tr.rand(3,4,5)
-#
+a = tr.rand(3,4,5)
+
 print(tr.__version__)
-#
-# # all_submissions_comments_label = pd.read_csv(filepath_or_buffer="all_submissions_comments_with_label_all_deltalog_final.csv",
-# #                                              index_col=False)
-# print(a)
+
+rnn = tr.nn.LSTMCell(10, 20)
+print("rnn is", rnn)
+input = tr.randn(6, 3, 10)
+print("input is", input)
+hx = tr.randn(3, 20)
+print("hx is", hx)
+cx = tr.randn(3, 20)
+print("cx is", cx)
+output = []
+for i in range(6):
+    hx, cx = rnn(input[i], (hx, cx))
+    print("hx is", hx)
+    print("cx is", cx)
+    output.append(hx)
+    print("output is", output)
+
