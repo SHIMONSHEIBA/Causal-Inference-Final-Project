@@ -1,5 +1,5 @@
 """
-This module contains a class to set the treatment feature.
+This module contains a class to set the sentiment.
 """
 
 # first run this, download() will open an installation gui
